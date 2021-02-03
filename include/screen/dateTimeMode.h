@@ -1,10 +1,10 @@
 #ifndef SCREEN_TIMEMODE_H
 #define SCREEN_TIMEMODE_H
 
-#include "screenMode.h"
 #include "Arduino.h"
-
 #include <LiquidCrystal_I2C.h>
+#include "screenMode.h"
+
 
 class DateTimeMode : public ScreenMode
 {
@@ -16,22 +16,21 @@ private:
   int _lastMinutes;
   int _lastSeconds;
   int _lastDay;
+  int _lastLevel;
 
   int _secCnt;
 
-  LiquidCrystal_I2C* _lcd;
-
-  void initState(int state);
+  void initState(int state, bool force);
   void printBigNum(int number, int startCol, int startRow);
 
 public:
   DateTimeMode(LiquidCrystal_I2C* lcd);
-  bool Show();
-  void Update();
-  int GetChangeTime();
-  int GetUpdateTime();
-  OVERRIDE_BACKLIGHT OverrideBacklight();
-  bool MaySkipByButton();
+  bool Show() override;
+  void Update() override;
+  int GetChangeTime() override;
+  int GetUpdateTime() override;
+  OVERRIDE_BACKLIGHT OverrideBacklight() override;
+  bool MaySkipByButton() override;
 
 };
 const byte CustomChars[8][8] PROGMEM = {

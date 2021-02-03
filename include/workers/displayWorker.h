@@ -17,23 +17,25 @@ struct backlightTime
 struct button
 {
     /* data */
-    long buttonPressTime;
-    uint32_t buttonCheckTimer;
-    bool buttonPressed;
+    long buttonPressTime = 0;
+    bool buttonPressed = false;
+    int clickCount = 0;
+    int longCount = 0;
 };
-
 
 
 class DisplayWorker : public Worker
 {
+    typedef std::function<void(button* arg)> onbuttonEvent;
+
 private:
     LiquidCrystal_I2C* lcd;
 
     ~DisplayWorker();
     void nextMode();
     void buttonStuff();
-    void onClick();
-    void onLongPress();
+
+    void buttonEvent(button* arg);
     void initModes();
 
     configHelper* config;
@@ -54,12 +56,19 @@ private:
     uint32_t _backlightUpdateTimer;
     uint32_t _modeUpdateTimer;
     uint32_t _changeModeTimer;
+
+    uint32_t _buttonCheckTimer;
+    uint32_t _sendButtonEventTimer;
+
+    onbuttonEvent _onbuttonEvent;
 public:
     DisplayWorker();
     DisplayWorker(configHelper* ch);
 
     void ShowMode(int index);
     void ShowMode(ScreenMode* customMode);
+
+    void OnButtonEventCallback(onbuttonEvent callback);
 
     void AddMode(ScreenMode* screenMode);
     void OnConfigStart() override;

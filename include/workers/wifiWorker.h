@@ -25,6 +25,9 @@ private:
     uint32_t _connectedCheckTimer;
     int _connectedCheckTime = 500;
 
+    WiFiEventHandler ConnectedHandler;
+    WiFiEventHandler DisconnectedHandler;
+    WiFiEventHandler GotIpHandler;
 
     void checkInternet();
 public:

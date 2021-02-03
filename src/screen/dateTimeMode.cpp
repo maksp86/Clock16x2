@@ -2,9 +2,9 @@
 
 #include <Time.h>
 
-DateTimeMode::DateTimeMode(LiquidCrystal_I2C* lcd)
+DateTimeMode::DateTimeMode(LiquidCrystal_I2C* lcd) : ScreenMode(lcd)
 {
-    _lcd = lcd;
+
 }
 
 bool DateTimeMode::Show()
@@ -12,15 +12,7 @@ bool DateTimeMode::Show()
     _lcd->clear();
     _secCnt = 0;
 
-    if (!(timeStatus() == timeStatus_t::timeSet))
-    {
-        _lcd->print("Time isn`t set!");
-        _lcd->setCursor(0, 1);
-        _lcd->print("Trying to get...");
-        _changeTime = 10000;
-        _state = -1;
-    }
-    else
+    if (timeStatus() == timeStatus_t::timeSet)
     {
         _lastDay = 255;
         _lastHours = 255;
@@ -34,18 +26,27 @@ bool DateTimeMode::Show()
             delete[] buf;
         }
 
-        initState(0);
+        initState(0, true);
         _changeTime = 50000;
         Update();
     }
+    else
+    {
+        _lcd->print("Time isn`t set!");
+        _lcd->setCursor(0, 1);
+        _lcd->print("Trying to get...");
+        _changeTime = 10000;
+        _state = -1;
+    }
+    return true;
 }
 
 void DateTimeMode::Update()
 {
     if (_state != -1)
     {
-        if (_secCnt > 40) initState(1);
-        else initState(0);
+        if (_secCnt > 40) initState(1, false);
+        else initState(0, false);
 
         if (_state == 0)
         {
@@ -127,9 +128,9 @@ void DateTimeMode::printBigNum(int number, int startCol, int startRow)
     delete[] thisNumber;
 }
 
-void DateTimeMode::initState(int state)
+void DateTimeMode::initState(int state, bool force)
 {
-    if (state == _state)
+    if (!force && state == _state)
         return;
 
     _lcd->clear();

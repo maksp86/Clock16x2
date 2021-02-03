@@ -15,6 +15,7 @@ WifiWorker::WifiWorker()
 #ifdef _DEBUG
   DebugHelper::Log(this, "Init");
 #endif
+  if (WiFi.getAutoConnect()) WiFi.setAutoConnect(false);
   WiFi.mode(WIFI_STA);
 }
 
@@ -25,9 +26,9 @@ WifiWorker::WifiWorker(WiFiManager* man, configHelper* ch, CONNECTED_CALLBACK_SI
   manager->setWiFiAutoReconnect(true);
 
   this->connectedCallback = connectedCallback;
-  WiFi.onStationModeConnected(std::bind(&WifiWorker::onStationConnected, this, std::placeholders::_1));
-  WiFi.onStationModeDisconnected(std::bind(&WifiWorker::onStationDisconnected, this, std::placeholders::_1));
-  WiFi.onStationModeGotIP(std::bind(&WifiWorker::onStationGotIP, this, std::placeholders::_1));
+  ConnectedHandler = WiFi.onStationModeConnected(std::bind(&WifiWorker::onStationConnected, this, std::placeholders::_1));
+  DisconnectedHandler = WiFi.onStationModeDisconnected(std::bind(&WifiWorker::onStationDisconnected, this, std::placeholders::_1));
+  GotIpHandler = WiFi.onStationModeGotIP(std::bind(&WifiWorker::onStationGotIP, this, std::placeholders::_1));
 }
 
 WifiWorker::~WifiWorker()

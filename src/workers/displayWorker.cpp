@@ -8,6 +8,7 @@
 
 #include "screen/screenMode.h"
 #include "screen/dateTimeMode.h"
+#include "screen/sampleMode.h"
 
 const char* BACKLIGHT_ON_TIME_KEY = "bs";
 const char* BACKLIGHT_OFF_TIME_KEY = "be";
@@ -30,15 +31,21 @@ DisplayWorker::DisplayWorker()
     _changeModeTimer = 0;
 
     _backlightTime = NULL;
-    _button = (button*)malloc(sizeof(button));
+    //_button = (button*)malloc(sizeof(button));
+    _button = new button;
+    _onbuttonEvent = NULL;
 
     lcd = new LiquidCrystal_I2C(I2C_ADDR, 16, 2, LCD_5x8DOTS);
     lcd->begin(PIN_SDA, PIN_SCL);
 
+    lcd->backlight();
     lcd->home();
     lcd->print(F("Booting..."));
     lcd->setCursor(0, 1);
+    delay(500);
     lcd->print(F("maksp86tech"));
+    delay(500);
+    lcd->print(F(" 2020"));
 
     initModes();
 }
@@ -60,7 +67,7 @@ DisplayWorker::~DisplayWorker()
         {
             delete screenModes[i];
         }
-        delete[]screenModes;
+        delete[] screenModes;
     }
 
     if (_backlightTime != NULL)
@@ -78,26 +85,46 @@ void DisplayWorker::ShowMode(int index)
 {
 #ifdef _DEBUG
     DebugHelper::Log(this, "Showing mode ");
-    Serial.print(_currentModeIndex);
+    DebugHelper::Log(this, index);
 #endif
     if (index >= 0 && index < _modesCount)
     {
         _currentModeIndex = index;
         _currMode = screenModes[_currentModeIndex];
         _currMode->Show();
+
+        _changeModeTimer = millis();
+        _modeUpdateTimer = 0;
     }
+#ifdef _DEBUG
+    else
+    {
+        DebugHelper::Log(this, "Cannot show mode ");
+        DebugHelper::Log(this, index);
+    }
+#endif
 }
 
 void DisplayWorker::ShowMode(ScreenMode* customMode)
 {
-#ifdef _DEBUG
-    DebugHelper::Log(this, "Showing custom mode ");
-#endif
     if (customMode != NULL)
     {
+#ifdef _DEBUG
+        DebugHelper::Log(this, "Showing custom mode ");
+#endif
+        if (_currMode != NULL && _currentModeIndex == -1)
+        {
+#ifdef _DEBUG
+            DebugHelper::Log(this, "deleting ");
+#endif
+            delete _currMode;
+        }
         _currMode = customMode;
         _currentModeIndex = -1;
+        _currMode->Init(lcd);
         _currMode->Show();
+        _changeModeTimer = millis();
+        _modeUpdateTimer = millis();
     }
 }
 
@@ -108,7 +135,7 @@ void DisplayWorker::AddMode(ScreenMode* screenMode)
 #endif
     if (_modesCount + 1 > _allocatedCount)
     {
-        ScreenMode** newModes = (ScreenMode**)realloc(screenModes, _modesCount + 1);
+        ScreenMode** newModes = (ScreenMode**)realloc(screenModes, (sizeof(ScreenMode**) * (_modesCount + 1)));
         if (newModes != NULL)
         {
             _allocatedCount++;
@@ -180,18 +207,19 @@ void DisplayWorker::Setup()
 
 #ifdef _DEBUG
         DebugHelper::Log(this, "Start bl time ");
-        Serial.print(_backlightTime->startHour);
-        Serial.print(":");
-        Serial.print(_backlightTime->endMinute);
+        DebugHelper::Log(this, _backlightTime->startHour);
+        DebugHelper::Log(this, ":");
+        DebugHelper::Log(this, _backlightTime->endMinute);
         DebugHelper::Log(this, "End bl time ");
-        Serial.print(_backlightTime->endHour);
-        Serial.print(":");
-        Serial.print(_backlightTime->endMinute);
-        Serial.println();
+        DebugHelper::Log(this, _backlightTime->endHour);
+        DebugHelper::Log(this, ":");
+        DebugHelper::Log(this, _backlightTime->endMinute);
 #endif
     }
     ShowMode(0);
     _changeModeTimer = millis();
+
+    ShowMode(new SampleMode(lcd));
 }
 
 void DisplayWorker::Update()
@@ -209,19 +237,35 @@ void DisplayWorker::Update()
         _modeUpdateTimer = millis();
     }
 
-    if (millis() - _backlightUpdateTimer > 500)
+    if (millis() - _backlightUpdateTimer > 1000)
     {
         bool state = false;
         OVERRIDE_BACKLIGHT ob = _currMode->OverrideBacklight();
         switch (ob)
         {
         case OVERRIDE_BACKLIGHT::NO_OVERRIDE:
-            if (_backlightTime != NULL)
+            if (timeStatus() == timeStatus_t::timeSet && _backlightTime != NULL)
             {
                 int currHour = hour();
                 int currMinute = minute();
-                if (currHour >= _backlightTime->startHour && currMinute >= _backlightTime->startMinute)
-                    if (currHour <= _backlightTime->endHour && currMinute <= _backlightTime->endMinute)
+
+                // #ifdef _DEBUG
+                //                 DebugHelper::Log(this, "curr time ");
+                //                 Serial.print(currHour);
+                //                 Serial.print(":");
+                //                 Serial.print(currMinute);
+                //                 DebugHelper::Log(this, "Start bl time ");
+                //                 Serial.print(_backlightTime->startHour);
+                //                 Serial.print(":");
+                //                 Serial.print(_backlightTime->endMinute);
+                //                 DebugHelper::Log(this, "End bl time ");
+                //                 Serial.print(_backlightTime->endHour);
+                //                 Serial.print(":");
+                //                 Serial.print(_backlightTime->endMinute);
+                //                 Serial.println();
+                // #endif
+                if (currHour > _backlightTime->startHour || (currHour == _backlightTime->startHour && currMinute >= _backlightTime->startMinute))
+                    if (currHour < _backlightTime->endHour || (currHour == _backlightTime->endHour && currMinute <= _backlightTime->endMinute))
                         state = true;
             }
             else
@@ -251,7 +295,7 @@ void DisplayWorker::nextMode()
 
 #ifdef _DEBUG
     DebugHelper::Log(this, "Next mode ");
-    Serial.print(_currentModeIndex);
+    DebugHelper::Log(this, _currentModeIndex);
 #endif
 
     ShowMode(_currentModeIndex);
@@ -259,51 +303,81 @@ void DisplayWorker::nextMode()
 
 void DisplayWorker::buttonStuff()
 {
-    if (millis() - _button->buttonCheckTimer > 50)
+    if (millis() - _buttonCheckTimer > 25)
     {
         if (digitalRead(BUTTON_PIN))
         {
             if (!_button->buttonPressed)
+            {
+                _button->buttonPressTime = 0;
                 _button->buttonPressed = true;
+                _buttonCheckTimer = millis();
+            }
             else
-                _button->buttonPressTime += millis() - _button->buttonCheckTimer;
+            {
+                _button->buttonPressTime += millis() - _buttonCheckTimer;
+                if (_button->buttonPressTime > 8000)
+                {
+                    _button->buttonPressTime = 100;
+                }
+            }
         }
         else
         {
             if (_button->buttonPressed)
             {
                 _button->buttonPressed = false;
-                if (_button->buttonPressTime > 3 * 1000)
+
+                if (_button->buttonPressTime > 1000)
                 {
-                    onLongPress();
+                    _button->longCount++;
                 }
-                else onClick();
-                _button->buttonPressTime = 0;
+                else
+                {
+                    _button->clickCount++;
+                }
+                _sendButtonEventTimer = millis();
             }
+
+            if (millis() - _sendButtonEventTimer > 250 && _button->buttonPressTime > 0)
+            {
+                buttonEvent(this->_button);
+                _button->buttonPressTime = 0;
+                _button->clickCount = 0;
+                _button->longCount = 0;
+                _sendButtonEventTimer = millis();
+            }
+
         }
-        _button->buttonCheckTimer = millis();
+        _buttonCheckTimer = millis();
     }
 }
 
-void DisplayWorker::onClick()
+void DisplayWorker::buttonEvent(button* arg)
 {
 #ifdef _DEBUG
     DebugHelper::Log(this, "onClick");
+    DebugHelper::Log(this, "buttonPressTime");
+    DebugHelper::Log(this, arg->buttonPressTime);
+    DebugHelper::Log(this, "clickCount");
+    DebugHelper::Log(this, arg->clickCount);
+    DebugHelper::Log(this, "longCount");
+    DebugHelper::Log(this, arg->longCount);
 #endif
-    if (_currMode->MaySkipByButton())
-    {
-        nextMode();
-    }
+    // if (_currMode->MaySkipByButton())
+    // {
+    //     nextMode();
+    // }
+    _onbuttonEvent(arg);
 }
 
-void DisplayWorker::onLongPress()
+void DisplayWorker::OnButtonEventCallback(onbuttonEvent callback)
 {
-#ifdef _DEBUG
-    DebugHelper::Log(this, "onLongPress");
-#endif
+    _onbuttonEvent = callback;
 }
 
 void DisplayWorker::initModes()
 {
+    //AddMode(new SampleMode(lcd));
     AddMode(new DateTimeMode(lcd));
 }

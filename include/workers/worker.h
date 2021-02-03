@@ -18,7 +18,7 @@ public:
   virtual void Update() = 0;
   virtual void OnConfigStart() = 0;
   virtual void OnConfigSave() = 0;
-  virtual ~Worker() = default;
+  virtual ~Worker() { };
 };
 
 #endif
