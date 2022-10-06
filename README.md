@@ -7,7 +7,7 @@
 - All board-depend defines must be in defines.h / все железозависимые переменные должны находиться в файле defines.h
 
 ### Пояснения
-- На устройство можно отправлять сообщения в формате JSON:
+- На устройство можно отправлять сообщения в формате JSON ([пример для pyscript](homeassistant_addons/pyscript/track_name_to_16x2Clock.py)):
     > каждый из параметров здесь является необязателеным
     ```
     { 
@@ -18,6 +18,26 @@
         "enqueue": false //показать сразу (false) или включить в очередь (true, по умолчанию)
     }
     ```
+- На устройство можно отправлять прогноз погоды в формате JSON ([например из автоматизации homeassistant](/homeassistant_addons/automations.yaml)):
+  ```
+        {
+          "cond": "cloudy", // https://home-assistant.io/integrations/weather/#condition-mapping
+          "temp": 1,
+          "hum": 90,
+          "wndspd": 10, // не используется 
+          "forecast": [ {
+                          "cond": "cloudy",
+                          "temp": 1,
+                          "templow": -1
+                        },
+                        {
+                          "cond": "cloudy",
+                          "temp": 1,
+                          "templow": -1 
+                        }
+                      ] 
+        }
+  ```
 
 ### TODO:  
 - [ ] Add wifimanager or something?
