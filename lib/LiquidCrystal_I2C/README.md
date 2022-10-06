@@ -1,5 +1,5 @@
-# LiquidCrystal_I2C
+# Modified LiquidCrystal_I2C
 
-LiquidCrystal Arduino library for the DFRobot I2C LCD displays
+LiquidCrystal Arduino library for the DFRobot I2C LCD displays what does not use Print class
 
-**This library is no longer actively maintained, I only put it here so everyone can access it via the Arduino library manger. If you would like to take the role of the maintainer/owner of the library, please send me a message!**
+Original library: [github](https://github.com/johnrickman/LiquidCrystal_I2C)
