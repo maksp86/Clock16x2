@@ -1,0 +1,34 @@
+alias: Yandex Weather to Clock16x2
+description: "Sends your weather forecast from Yandex weather (custom integration from HACS)"
+trigger:
+  - entity_id: weather.yandex_weather
+    platform: state
+    attribute: temperature
+  - entity_id:
+      - weather.yandex_weather
+    platform: state
+    attribute: forecast
+condition: []
+action:
+  - data_template:
+      payload: >-
+        { "cond": "{{ states.weather.yandex_weather.state }}",
+          "temp": {{ states.weather.yandex_weather.attributes.temperature }},
+          "hum": {{states.weather.yandex_weather.attributes.humidity }},
+          "wndspd": {{ states.weather.yandex_weather.attributes.wind_speed }},
+          "forecast": [ {
+                          "cond": "{{ states.weather.yandex_weather.attributes.forecast[0].condition }}",
+                          "temp": {{ states.weather.yandex_weather.attributes.forecast[0].temperature }},
+                          "templow": {{ states.weather.yandex_weather.attributes.forecast[0].templow }} 
+                        },
+                        {
+                          "cond": "{{ states.weather.yandex_weather.attributes.forecast[1].condition}}",
+                          "temp": {{ states.weather.yandex_weather.attributes.forecast[1].temperature }},
+                          "templow": {{ states.weather.yandex_weather.attributes.forecast[1].templow }} 
+                        }
+                      ] 
+        }
+      retain: true
+      topic: /changeme/please/yaweather/status
+    service: mqtt.publish
+mode: single
