@@ -1,238 +1,147 @@
-
-#pragma endregion Defines
-
-#pragma region Includes
 #include <Arduino.h>
+#include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
-#include <FS.h>
-#include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
 #include <DNSServer.h>
-#include <WiFiManager.h>
-#include <ArduinoJson.h>
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <PubSubClient.h>
-#include <ArduinoOTA.h>
 
-#include "statics.h"
-#include "helpers/debugHelper.h"
-#include "helpers/configHelper.h"
 
-#include "workers/worker.h"
-#include "workers/wifiWorker.h"
-#include "workers/mqttWorker.h"
-#include "workers/ntpWorker.h"
-#include "workers/displayWorker.h"
-#include "workers/otaWorker.h"
+#include "helpers.h"
+#include "display/display.h"
+#include "button/button.h"
+#include "wifi/wifi.h"
+#include "ntp/ntp.h"
+#include "ota/ota.h"
+#include "mqtt/mqtt.h"
+#include "message_from_mqtt.h"
+#include "display/appearance/lock.h"
+#include "display/modes/weather_mode/weather_mode.h"
 
-#include "screen/msgMode.h"
-#include "screen/progressbarMode.h"
-#pragma endregion Includes
-
-configHelper* confighelper;
-
-WifiWorker* wifiworker;
-MqttWorker* mqttworker;
-NtpWorker* ntpWorker;
-DisplayWorker* displayWorker;
-OTAWorker* otaWorker;
-
-WiFiManager WifiManager;
-WiFiClient client;
-PubSubClient mqttClient(client);
-
-const int WORKERS_COUNT = 5;
-Worker* workers[WORKERS_COUNT];
-
-void configModeCallback(WiFiManager* manager)
-{
-#ifdef _DEBUG
-  DebugHelper::Log("main", "config");
-#endif
-  displayWorker->ShowMode(new MsgMode(manager->getConfigPortalSSID().c_str(), "Config ap", (byte*)NULL, -1, false));
-
-  for (int i = 0; i < WORKERS_COUNT; i++)
-  {
-    workers[i]->OnConfigStart();
-  }
-}
-
-void saveConfigCallback()
-{
-#ifdef _DEBUG
-  DebugHelper::Log("main", "save");
-#endif
-  displayWorker->ShowMode(new MsgMode("Config saved", true));
-  confighelper->Save(); //must be first call here
-
-  for (int i = 0; i < WORKERS_COUNT; i++)
-  {
-    workers[i]->OnConfigSave();
-  }
-}
-
-void OnWifiConnected()
-{
-  displayWorker->ShowMode(new MsgMode(WiFi.SSID().c_str(), "Connected to", (WifiIcon), 5000, true));
-  for (int i = 0; i < WORKERS_COUNT; i++)
-  {
-    if (workers[i]->InternetNeed() == InternetNeedState::NEED_WIFI)
-      workers[i]->Setup();
-    else if (workers[i]->InternetNeed() == InternetNeedState::NEED_INTERNET)
-      if (wifiworker->HasInternet())
-        workers[i]->Setup();
-  }
-
-  if (MDNS.begin(Statics::GetID()))
-    Serial.println("MDNS started");
-  else
-    Serial.println("MDNS fail");
-}
-
-void OnMqttMessage(char* topic, uint8_t* payload, unsigned int payloadLength)
-{
-
-}
-
-void OnButtonEvent(button* arg)
-{
-  if (arg->longCount == 1 && (arg->buttonPressTime > 5000 && arg->buttonPressTime < 7000))
-  {
-    displayWorker->ShowMode(new MsgMode("to start config", "Press 7 sec", (byte*)NULL, 2000, true));
-  }
-  else if (arg->buttonPressTime >= 7000)
-  {
-    WifiManager.startConfigPortal();
-  }
-}
-
-void InitWorkers()
-{
-  wifiworker = new WifiWorker(&WifiManager, confighelper, OnWifiConnected);
-  mqttworker = new MqttWorker(&mqttClient, confighelper, OnMqttMessage);
-  ntpWorker = new NtpWorker(confighelper);
-  displayWorker = new DisplayWorker(confighelper);
-  displayWorker->OnButtonEventCallback(OnButtonEvent);
-
-  otaWorker = new OTAWorker(confighelper,
-    []()
-    {
-      displayWorker->ShowMode(new ProgressBarMode("UPDATING BY OTA", otaWorker->GetProgressPtr()));
-    },
-    []()
-    {
-      displayWorker->ShowMode(new MsgMode("COMPLETE", "OTA UPDATE", (byte*)NULL, 5000, true));
-    },
-      [](int progress)
-    {
-      displayWorker->Update();
-    },
-      [](ota_error_t err)
-    {
-      switch (err)
-      {
-      case ota_error_t::OTA_AUTH_ERROR:
-        displayWorker->ShowMode(new MsgMode("OTA AUTH ERROR", true));
-        break;
-      case ota_error_t::OTA_BEGIN_ERROR:
-        displayWorker->ShowMode(new MsgMode("OTA BEGIN ERROR", true));
-        break;
-      case ota_error_t::OTA_CONNECT_ERROR:
-        displayWorker->ShowMode(new MsgMode("OTA CONNECT ERR", true));
-        break;
-      case ota_error_t::OTA_END_ERROR:
-        displayWorker->ShowMode(new MsgMode("OTA END ERROR", true));
-        break;
-      case ota_error_t::OTA_RECEIVE_ERROR:
-        displayWorker->ShowMode(new MsgMode("OTA RECEIVE ERR", true));
-        break;
-      }
-    });
-
-  workers[0] = displayWorker;
-  workers[1] = wifiworker;
-  workers[2] = mqttworker;
-  workers[3] = ntpWorker;
-  workers[4] = otaWorker;
-}
-
-bool ifLastRebootIsError()
-{
-  rst_info* rst = ESP.getResetInfoPtr();
-  if (rst->reason == rst_reason::REASON_EXCEPTION_RST)
-  {
-    Serial.println("REBOOT WITH ERROR!!!!");
-    return true;
-  }
-  else return false;
-}
-
-bool allowWork;
+bool safe_start = false;
+weather_mode* display_weather_mode;
 
 void setup()
 {
-  Serial.begin(74880, SERIAL_8N1, SERIAL_TX_ONLY);
-  allowWork = !ifLastRebootIsError();
-  if (!allowWork)
-  {
-    LiquidCrystal_I2C* lcd = new LiquidCrystal_I2C(I2C_ADDR, 16, 2, LCD_5x8DOTS);
-    lcd->begin(PIN_SDA, PIN_SCL);
-    lcd->backlight();
-    lcd->print(F("REBOOT WITH ERR!"));
-    lcd->setCursor(0, 1);
-    lcd->print(F("NEED DEBUG"));
-    lcd->flush();
-    return;
-  }
-
-#ifdef _DEBUG
-  DebugHelper::Log("main", "Boot");
-  DebugHelper::Log("main", Statics::GetID());
+#if DEBUG >= 1
+	Serial.begin(74880);
 #endif
 
-  confighelper = new configHelper(&WifiManager);
-  confighelper->Load();
+	rst_info* rst = ESP.getResetInfoPtr();
+	if (rst->reason == rst_reason::REASON_EXCEPTION_RST)
+	{
+#if DEBUG >= 1
+		Serial.printf("Reboot from exception %u\n", rst->reason);
+#endif
+		safe_start = true;
+	}
+	else
+	{
+#if DEBUG >= 1
+		Serial.printf("Reboot from %u\n", rst->reason);
+#endif
+		safe_start = false;
+	}
 
-  WifiManager.setAPCallback(configModeCallback);
-  WifiManager.setSaveConfigCallback(saveConfigCallback);
+	make_device_name();
+	display_setup();
 
-  InitWorkers();
-  for (int i = 0; i < WORKERS_COUNT; i++)
-  {
-    if (workers[i]->InternetNeed() == NO_NEED)
-      workers[i]->Setup();
-  }
-  yield();
+	display_weather_mode = new weather_mode();
+	display_add_mode(display_weather_mode);
+
+	if (safe_start)
+	{
+		display_show_mode(new message_mode(PSTR("Safe mode"), PSTR("loaded"), NULL, 2000, false));
+		display_update();
+		WiFi.begin(WIFI_SSID, WIFI_KEY);
+		ArduinoOTA.begin();
+		return;
+	}
+
+	button_setup();
+	wifi_setup();
+	ntp_setup(NTP_SERVER, NTP_TIME_DELTA);
+	ota_setup();
+	mqtt_setup();
+
+#if DEBUG >= 1
+	Serial.printf("%s successfully booted", get_device_name());
+#endif
 }
 
 void loop()
 {
-  if (allowWork)
-    if (otaWorker->IsUpdating())
-    {
-      displayWorker->Update();
-      otaWorker->Update();
-    }
-    else
-      for (int i = 0; i < WORKERS_COUNT; i++)
-      {
-        if (workers[i]->InternetNeed() > 0)
-        {
-          if (!wifiworker->IsConnected())
-          {
-            continue;
-          }
-
-          if (workers[i]->InternetNeed() == InternetNeedState::NEED_WIFI)
-            workers[i]->Update();
-          else if (workers[i]->InternetNeed() == InternetNeedState::NEED_INTERNET)
-            if (wifiworker->HasInternet())
-              workers[i]->Update();
-        }
-        else
-          workers[i]->Update();
-      }
-  yield();
+	if (safe_start)
+	{
+		ArduinoOTA.handle();
+		return;
+	}
+	display_update();
+	button_update();
+	wifi_update();
+	ntp_update();
+	ota_update();
+	mqtt_loop();
 }
 
+void button_callback(const char* pattern, uint8_t pattern_len, uint32_t press_time)
+{
+	display_on_interact(pattern, pattern_len);
+}
+
+void wifi_on_event(wifi_event event)
+{
+#if DEBUG >= 2
+	Serial.printf("wifi_on_event() %d\n", (uint8_t)event);
+#endif
+	ntp_on_wifi_event(event);
+
+	switch (event)
+	{
+	case wifi_event::WIFI_ON_CONNECTED:
+		mqtt_connect(MQTT_BROKER_HOSTNAME, MQTT_BROKER_PORT, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
+		break;
+	}
+}
+
+void mqtt_on_connected(AsyncMqttClient* client)
+{
+	subscribe_to_lock(client);
+	subscribe_to_message(client);
+	display_weather_mode->mqtt_subscribe(client);
+
+	char* subscribe_buffer = new char[128];
+
+	sprintf(subscribe_buffer, "%syaweather/status", mqtt_topic_start());
+	client->subscribe(subscribe_buffer, 0);
+
+	delete[] subscribe_buffer;
+
+}
+
+void mqtt_on_message(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+	on_lock_message(topic, payload, len);
+	check_message(topic, payload, len);
+	display_weather_mode->on_mqtt_data(topic, payload, len);
+#if DEBUG >= 4
+	Serial.println("Publish received.");
+	Serial.print("  topic: ");
+	Serial.println(topic);
+	Serial.print("  payload: ");
+	Serial.write(payload, total);
+	Serial.println();
+	Serial.print("  qos: ");
+	Serial.println(properties.qos);
+	Serial.print("  dup: ");
+	Serial.println(properties.dup);
+	Serial.print("  retain: ");
+	Serial.println(properties.retain);
+	Serial.print("  len: ");
+	Serial.println(len);
+	Serial.print("  index: ");
+	Serial.println(index);
+	Serial.print("  total: ");
+	Serial.println(total);
+#endif
+}
