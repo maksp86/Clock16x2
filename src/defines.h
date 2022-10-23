@@ -22,12 +22,4 @@
 
 //#define OTA_PASSWORD ""
 
-#define USE_HOMEASSISTANT
-
-#ifdef USE_HOMEASSISTANT
-#define SW_MAINTAINER "maksp86"
-#define SW_VER "1.0.0.2"
-#define DEV_NAME DEVICE_NAME_PREFIX
-#endif
-
 #endif // __DEFINES_H__
