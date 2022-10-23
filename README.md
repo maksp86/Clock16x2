@@ -9,6 +9,8 @@
 ### Пояснения
 - На устройство можно отправлять сообщения в формате JSON ([пример для pyscript](homeassistant_addons/pyscript/track_name_to_16x2Clock.py)):
     > каждый из параметров здесь является необязателеным
+    
+    Топик для отправки: MQTT_TOPIC_PREFIX/message
     ```
     { 
         "title": "title", //текст сверху (13 или 15 символов в зависимости от наличия icon) 
@@ -18,7 +20,18 @@
         "enqueue": false //показать сразу (false) или включить в очередь (true, по умолчанию)
     }
     ```
+    <details>
+    <summary>Про формат картинки</summary>
+    4 тайла разрешением 5*8px
+
+    На каждый тайл по 8 байт
+
+    В итоге получится 32 байта (64 hex символа)
+
+    Порядок: левый верхний -> ... -> нижний правый
+    </details>
 - На устройство можно отправлять прогноз погоды в формате JSON ([например из автоматизации homeassistant](/homeassistant_addons/automations.yaml)):
+  Топик для отправки: MQTT_TOPIC_PREFIX/yaweather/status
   ```
         {
           "cond": "cloudy", // https://home-assistant.io/integrations/weather/#condition-mapping
@@ -38,6 +51,10 @@
                       ] 
         }
   ```
+- Есть режим блокировки (a.k.a энергосберегающий):
+  Топик для отправки: MQTT_TOPIC_PREFIX/lock/set
+  Формат: ON/OFF, retain: true
+  [Пример автоматизации для homeassistant](./homeassistant_addons/automation_lock.yaml)
 
 ### TODO:  
 - [ ] Add wifimanager or something?

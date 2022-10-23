@@ -1,0 +1,14 @@
+alias: Send when I leave home to MQTT
+description: ""
+trigger:
+  - platform: state
+    entity_id:
+      - person.CHANGEME
+condition: []
+action:
+  - service: mqtt.publish
+    data:
+      topic: /changeme/please/lock/set
+      retain: true
+      payload_template: "{{(states.person.CHANGEME.state != \"home\") | string | lower }}"
+mode: single

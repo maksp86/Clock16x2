@@ -7,14 +7,14 @@ void on_lock_message(char* topic, char* payload, size_t len)
 {
     if (strcmp(topic, lock_topic) == 0)
     {
-        if (strncmp(payload, "true", 4) == 0)
+        if (strncmp(payload, "ON", 2) == 0)
         {
 #if DEBUG >= 4
             Serial.println("on_lock_message locked");
 #endif
             lock_state = true;
         }
-        else if (strncmp(payload, "false", 5) == 0)
+        else if (strncmp(payload, "OFF", 3) == 0)
         {
           #if DEBUG >= 4
             Serial.println("on_lock_message unlocked");

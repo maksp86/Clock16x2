@@ -17,6 +17,7 @@
 #include "message_from_mqtt.h"
 #include "display/appearance/lock.h"
 #include "display/modes/weather_mode/weather_mode.h"
+#include "mqtt/homeassistant_autodiscovery/hass_mqtt.h"
 
 bool safe_start = false;
 weather_mode* display_weather_mode;
@@ -82,6 +83,7 @@ void loop()
 	ntp_update();
 	ota_update();
 	mqtt_loop();
+	send_sensors();
 }
 
 void button_callback(const char* pattern, uint8_t pattern_len, uint32_t press_time)
@@ -106,6 +108,7 @@ void wifi_on_event(wifi_event event)
 
 void mqtt_on_connected(AsyncMqttClient* client)
 {
+	autodiscovery_send(client);
 	subscribe_to_lock(client);
 	subscribe_to_message(client);
 	display_weather_mode->mqtt_subscribe(client);

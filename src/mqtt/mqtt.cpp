@@ -77,6 +77,11 @@ bool mqtt_is_connected()
     return mqtt_client->connected();
 }
 
+AsyncMqttClient* mqtt_get_client()
+{
+    return mqtt_client;
+}
+
 const char* mqtt_topic_start()
 {
     return mqtt_device_topic;
