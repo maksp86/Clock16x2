@@ -112,14 +112,6 @@ void mqtt_on_connected(AsyncMqttClient* client)
 	subscribe_to_lock(client);
 	subscribe_to_message(client);
 	display_weather_mode->mqtt_subscribe(client);
-
-	char* subscribe_buffer = new char[128];
-
-	sprintf(subscribe_buffer, "%syaweather/status", mqtt_topic_start());
-	client->subscribe(subscribe_buffer, 0);
-
-	delete[] subscribe_buffer;
-
 }
 
 void mqtt_on_message(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)

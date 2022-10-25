@@ -38,8 +38,8 @@ void mqtt_connect(const char* login, const char* password)
 {
     mqtt_client->setClientId(get_device_name());
     mqtt_client->setCredentials(login, password);
-#if DEBUG >= 4
     sprintf(mqtt_willtopic, "%sstate", mqtt_topic_start());
+#if DEBUG >= 4
     Serial.printf("mqtt_connect: %s\n", mqtt_willtopic);
 #endif
     mqtt_client->setWill(mqtt_willtopic, 0, true, "offline");
@@ -122,9 +122,9 @@ void mqtt_connected_callback(bool sessionPresent)
     char* topicbuf = new char[64];
 
 #if DEBUG >= 4
-    sprintf(topicbuf, "%sstate", mqtt_topic_start());
     Serial.printf("mqtt_connected_callback: %s\n", topicbuf);
 #endif
+    sprintf(topicbuf, "%sstate", mqtt_topic_start());
 
     mqtt_client->publish(topicbuf, 0, true, "online");
     delete[] topicbuf;
