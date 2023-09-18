@@ -10,5 +10,5 @@ action:
     data:
       topic: /changeme/please/lock/set
       retain: true
-      payload_template: "{{(states.person.CHANGEME.state != \"home\") | string | lower }}"
+      payload_template: "{{'OFF' if (states.person.CHANGEME.state == 'home') else 'ON' }}"
 mode: single
