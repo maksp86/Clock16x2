@@ -8,6 +8,7 @@
 #include "display/display.h"
 #include "display/modes/progress_mode/progress_mode.h"
 #include "display/modes/message_mode/message_mode.h"
+#include "wifi/wifi.h"
 
 void ota_setup();
 void ota_update();

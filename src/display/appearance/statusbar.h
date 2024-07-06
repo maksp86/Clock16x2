@@ -16,6 +16,7 @@
 #define STATUSBAR_MODE_SLIM 1
 
 void statusbar_set_mode(LiquidCrystal_I2C* lcd, uint8_t mode);
+void statusbar_set_wifi_busy();
 void statusbar_update(LiquidCrystal_I2C* lcd);
 void statusbar_full_redraw(LiquidCrystal_I2C* lcd);
 #endif // __STATUSBAR_H__

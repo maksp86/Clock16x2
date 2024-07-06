@@ -19,6 +19,6 @@ void scrolling_text_destroy(bool full = false);
  */
 void scrolling_text_prepare(const char* text, uint8_t textlen, uint8_t speed = 0, uint8_t col = 0, uint8_t row = 0, uint8_t width = 16);
 void scrolling_text_prepare_P(PGM_P text, uint8_t speed = 0, uint8_t col = 0, uint8_t row = 0, uint8_t width = 16);
-void scrolling_text_loop(LiquidCrystal_I2C* lcd);
+void scrolling_text_update(LiquidCrystal_I2C* lcd);
 
 #endif // __SCROLLING_TEXT_H__

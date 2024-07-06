@@ -51,6 +51,7 @@ void ntp_update()
     if (ntp_need_update && millis() - ntp_update_timer > ntp_curr_update_time)
     {
         ntp_send_time_packet();
+        statusbar_set_wifi_busy();
         ntp_update_timer = millis();
     }
 

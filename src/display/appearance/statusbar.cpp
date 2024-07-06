@@ -6,6 +6,9 @@ uint8_t statusbar_curr_mode = STATUSBAR_MODE_DEFAULT;
 uint8_t stausbar_last_signal_strength = 0;
 uint8_t stausbar_last_lock_state = false;
 
+bool wifi_is_busy = false;
+bool last_wifi_is_busy = false;
+
 void statusbar_full_redraw(LiquidCrystal_I2C* lcd)
 {
     switch (statusbar_curr_mode)
@@ -33,6 +36,11 @@ void statusbar_set_mode(LiquidCrystal_I2C* lcd, uint8_t mode)
     statusbar_full_redraw(lcd);
 }
 
+void statusbar_set_wifi_busy()
+{
+    wifi_is_busy = true;
+}
+
 void statusbar_update(LiquidCrystal_I2C* lcd)
 {
     if (millis() - statusbar_timer > 300)
@@ -54,6 +62,8 @@ void statusbar_update(LiquidCrystal_I2C* lcd)
         }
 
         int8_t zeros = 8;
+        const uint8_t* icon_ptr = wifi_state_icon;
+
         switch (wifi_get_last_status())
         {
         case wifi_status::WIFI_CONNECTED:
@@ -69,7 +79,6 @@ void statusbar_update(LiquidCrystal_I2C* lcd)
         }
 
         case wifi_status::WIFI_CONNECTING:
-        case wifi_status::WIFI_AP_ENABLED:
         {
             if (stausbar_last_signal_strength - 2 >= 0)
             {
@@ -77,13 +86,34 @@ void statusbar_update(LiquidCrystal_I2C* lcd)
             }
             break;
         }
+
+        case wifi_status::WIFI_AP_ENABLED:
+        {
+            icon_ptr = wifi_ap_icon;
+            zeros = 0;
+            break;
+        }
         }
 
-        if (zeros != stausbar_last_signal_strength)
+        if (wifi_is_busy && wifi_is_busy == last_wifi_is_busy)
+        {
+            wifi_is_busy = false;
+        }
+
+        if (zeros != stausbar_last_signal_strength || wifi_is_busy != last_wifi_is_busy)
         {
             uint8_t tmp[8];
-            memcpy_P(tmp, wifi_state_icon, 8);
-            memset(tmp, 0, zeros);
+
+            //custom memcpy_P and memset with inverse icon when wifi is busy
+            for (uint8_t i = 0; i < 8; i++)
+            {
+                tmp[i] = i < zeros ? 0 : pgm_read_byte(&icon_ptr[i]);
+            }
+            if (wifi_is_busy) tmp[7] = 0b00011111;
+            last_wifi_is_busy = wifi_is_busy;
+            // memcpy_P(tmp, wifi_state_icon, 8);
+            //memset(tmp, 0, zeros);
+
             if (wifi_get_last_status() == wifi_status::WIFI_AP_ENABLED)
                 tmp[7] = B11111;
             lcd->createChar(STATUSBAR_WIFI_ICON_POS, tmp);

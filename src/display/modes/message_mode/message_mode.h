@@ -1,6 +1,8 @@
 #ifndef __MESSAGE_MODE_H__
 #define __MESSAGE_MODE_H__
 
+#include "defines.h"
+
 #include "display/modes/display_mode.h"
 #include "display/scrolling_text/scrolling_text.h"
 #include "display/appearance/statusbar.h"

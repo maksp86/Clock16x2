@@ -6,12 +6,16 @@
 #define LCD_SCL 3
 #define BUTTON_PIN 2
 
+//Uncomment to enable
+//#define HTU21D_ENABLED
+
 #define DEVICE_NAME_PREFIX "clock16x2"
 
 #define WIFI_SSID ""
 #define WIFI_KEY ""
 
 #define NTP_SERVER "pool.ntp.org"
+//Time offset relative to UTC
 #define NTP_TIME_DELTA 0
 
 #define MQTT_BROKER_HOSTNAME "192.168.1.1"
@@ -22,11 +26,12 @@
 
 //#define OTA_PASSWORD ""
 
-#define USE_HOMEASSISTANT
+//Uncomment to enable
+//#define USE_HOMEASSISTANT
 
 #ifdef USE_HOMEASSISTANT
 #define SW_MAINTAINER "maksp86"
-#define SW_VER "1.0.0.2"
+#define SW_VER "1.0.1.0"
 #define DEV_NAME DEVICE_NAME_PREFIX
 #endif
 

@@ -142,7 +142,7 @@ void progress_mode::update(LiquidCrystal_I2C* lcd)
         update_normal(lcd);
 
     if (title_len > 14)
-        scrolling_text_loop(lcd);
+        scrolling_text_update(lcd);
 }
 
 void progress_mode::set_progress(unsigned int _value)

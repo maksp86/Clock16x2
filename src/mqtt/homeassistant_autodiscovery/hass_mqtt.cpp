@@ -26,7 +26,7 @@ void autodiscovery_send(AsyncMqttClient* client)
     sprintf(uniq_id, "%s-wifirssi", get_device_name());
 
     out_len = sprintf_P(out, config_format_template,
-        mqtt_topic_start(), PSTR("WIFI Strength"), uniq_id, PSTR("\"stat_t\":\"~rssi\",\"unit_of_meas\":\"%\",\"dev_cla\":\"signal_strength\","),
+        mqtt_topic_start(), PSTR("WIFI Strength"), uniq_id, PSTR("\"stat_t\":\"~rssi\",\"unit_of_meas\":\"dBm\",\"dev_cla\":\"signal_strength\","),
         get_device_name(), DEVICE_NAME_PREFIX, SW_VER, SW_MAINTAINER);
 
     sprintf_P(topic, sensor_config_topic_template, "sensor", get_device_name(), "w");
@@ -37,10 +37,32 @@ void autodiscovery_send(AsyncMqttClient* client)
     sprintf(uniq_id, "%s-uptime", get_device_name());
 
     out_len = sprintf_P(out, config_format_template,
-        mqtt_topic_start(), PSTR("Uptime"), uniq_id, PSTR("\"stat_t\":\"~uptime\",\"unit_of_meas\":\"s\",\"ic\":\"mdi:timer\","),
+        mqtt_topic_start(), PSTR("Uptime"), uniq_id, PSTR("\"stat_t\":\"~uptime\",\"unit_of_meas\":\"s\",\"ic\":\"mdi:timer\",\"dev_cla\":\"duration\","),
         get_device_name(), DEVICE_NAME_PREFIX, SW_VER, SW_MAINTAINER);
 
     sprintf_P(topic, sensor_config_topic_template, "sensor", get_device_name(), "u");
+
+    client->publish(topic, 0, true, out, out_len);
+
+
+    sprintf(uniq_id, "%s-temp", get_device_name());
+
+    out_len = sprintf_P(out, config_format_template,
+        mqtt_topic_start(), PSTR("Temperature"), uniq_id, PSTR("\"stat_t\":\"~temp\",\"dev_cla\":\"temperature\",\"unit_of_meas\":\"°C\","),
+        get_device_name(), DEVICE_NAME_PREFIX, SW_VER, SW_MAINTAINER);
+
+    sprintf_P(topic, sensor_config_topic_template, "sensor", get_device_name(), "t");
+
+    client->publish(topic, 0, true, out, out_len);
+
+
+    sprintf(uniq_id, "%s-hum", get_device_name());
+
+    out_len = sprintf_P(out, config_format_template,
+        mqtt_topic_start(), PSTR("Humidity"), uniq_id, PSTR("\"stat_t\":\"~hum\",\"dev_cla\":\"humidity\",\"unit_of_meas\":\"%\","),
+        get_device_name(), DEVICE_NAME_PREFIX, SW_VER, SW_MAINTAINER);
+
+    sprintf_P(topic, sensor_config_topic_template, "sensor", get_device_name(), "h");
 
     client->publish(topic, 0, true, out, out_len);
 
@@ -72,7 +94,7 @@ uint32_t mqtt_sensors_send_timer = 0;
 
 void send_sensors(bool force)
 {
-    if (millis() - mqtt_sensors_send_timer > 30000 || force)
+    if (millis() - mqtt_sensors_send_timer > 60000 || force)
     {
         if (mqtt_is_connected())
         {
@@ -80,14 +102,28 @@ void send_sensors(bool force)
             char* topic = new char[strlen(mqtt_topic_start()) + 10];
 
             sprintf(topic, "%s%s", mqtt_topic_start(), "rssi");
-            sprintf(payload, "%u", get_percent_from_RSSI(WiFi.RSSI()));
+            sprintf(payload, "%d", WiFi.RSSI());
 
             mqtt_get_client()->publish(topic, 0, false, payload);
+
 
             sprintf(topic, "%s%s", mqtt_topic_start(), "uptime");
             sprintf(payload, "%lu", millis() / 1000);
 
             mqtt_get_client()->publish(topic, 0, false, payload);
+
+
+            sprintf(topic, "%s%s", mqtt_topic_start(), "hum");
+            sprintf(payload, "%.2f", htu21d_get_humidity());
+
+            mqtt_get_client()->publish(topic, 0, false, payload);
+
+
+            sprintf(topic, "%s%s", mqtt_topic_start(), "temp");
+            sprintf(payload, "%.2f", htu21d_get_temperature());
+
+            mqtt_get_client()->publish(topic, 0, false, payload);
+
 
             delete[] payload;
             delete[] topic;

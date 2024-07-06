@@ -4,11 +4,12 @@
 #include <Arduino.h>
 #include <AsyncMqttClient.h>
 
+#include "display/appearance/statusbar.h"
 #include "wifi/wifi.h"
 #include "helpers.h"
 
 void mqtt_setup();
-void mqtt_loop();
+void mqtt_update();
 void mqtt_connect(IPAddress server, uint16_t port, const char* login = nullptr, const char* password = nullptr);
 void mqtt_connect(const char* server, uint16_t port, const char* login = nullptr, const char* password = nullptr);
 void mqtt_disconnect(bool force);

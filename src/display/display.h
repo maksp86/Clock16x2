@@ -17,6 +17,10 @@
 #include "modes/message_mode/message_mode.h"
 #include "modes/time_mode/time_mode.h"
 
+#ifdef HTU21D_ENABLED
+#include "modes/local_climate_mode/local_climate_mode.h"
+#endif
+
 void display_setup();
 void display_update();
 bool display_show_mode(DisplayMode* mode);

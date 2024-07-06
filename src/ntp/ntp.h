@@ -8,6 +8,8 @@
 #include "inttypes.h"
 #include "wifi/wifi.h"
 
+#include "display/appearance/statusbar.h"
+
 extern "C"
 {
 #include "lwip/init.h"

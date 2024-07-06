@@ -2,7 +2,6 @@
 #define __WIFI_H__
 
 #include "Arduino.h"
-//#include "WiFiManager.h"
 
 #include "helpers.h"
 
@@ -21,12 +20,14 @@ typedef enum {
     WIFI_ON_AP_START = 4,
     WIFI_ON_AP_END = 5,
     WIFI_ON_AP_STA_CON = 6,
-    WIFI_ON_AP_STA_DISCON = 7
+    WIFI_ON_AP_STA_DISCON = 7,
+    WIFI_ON_CONNECTING = 8
 } wifi_event;
 
 void wifi_setup();
 void wifi_update();
 void wifi_on_event(wifi_event event);
+void wifi_suppress_events();
 wifi_status wifi_get_last_status();
 
 

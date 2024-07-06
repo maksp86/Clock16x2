@@ -1,6 +1,10 @@
 #ifndef __WEATHER_MODE_H__
 #define __WEATHER_MODE_H__
 
+#include "defines.h"
+
+#ifdef USE_HOMEASSISTANT
+
 #include <ArduinoJson.h>
 
 #include "mqtt/mqtt.h"
@@ -8,6 +12,7 @@
 #include "display/modes/display_mode.h"
 #include "display/scrolling_text/scrolling_text.h"
 #include "helpers.h"
+#include "weather_icons.h"
 
 struct weather_forecast
 {
@@ -36,7 +41,7 @@ private:
     uint8_t text_down_len;
     char* weather_topic;
     weather_object weather_container;
-    
+
     void load_icons(LiquidCrystal_I2C* lcd, const char* condition);
 public:
     weather_mode();
@@ -51,5 +56,6 @@ public:
     void mqtt_subscribe(AsyncMqttClient* client);
 };
 
+#endif
 
 #endif // __WEATHER_MODE_H__

@@ -17,11 +17,38 @@ void wifi_got_ip_timeout();
 
 bool need_wifi_timeout_timer;
 uint32_t wifi_timeout_timer;
+uint8_t wifi_timeout_timer_count;
 void wifi_arm_timer();
 void wifi_disarm_timer();
 
+bool need_wifi_suppress_events;
+
+void _wifi_try_connect()
+{
+#if DEBUG >= 2
+    Serial.printf("status %d\n", WiFi.status());
+#endif
+
+#if DEBUG >= 2
+    Serial.printf("connecting to %s\n", WiFi.SSID().c_str());
+#endif
+    WiFi.begin(WIFI_SSID, WIFI_KEY);
+
+    wifi_last_status = wifi_status::WIFI_CONNECTING;
+    wifi_on_event(wifi_event::WIFI_ON_CONNECTING);
+}
+
+void _wifi_handle_timeout()
+{
+    wifi_last_status = wifi_status::WIFI_IDLE_STATUS;
+    wifi_on_event(wifi_event::WIFI_ON_CONNECT_TIMEOUT);
+    //TODO
+}
+
 void wifi_setup()
 {
+    need_wifi_suppress_events = false;
+
     onmodechanged = WiFi.onWiFiModeChange(&wifi_on_mode_change);
 
     onconnected = WiFi.onStationModeConnected(&wifi_on_connected);
@@ -31,10 +58,9 @@ void wifi_setup()
     ondhcptimeout = WiFi.onStationModeDHCPTimeout(&wifi_got_ip_timeout);
 
     WiFi.setHostname(get_device_name());
-    if (WiFi.getAutoConnect())
-        WiFi.setAutoConnect(false);
-
-    //wifi_manager = new WiFiManager();
+    WiFi.setAutoConnect(false);
+    WiFi.setAutoReconnect(false);
+    WiFi.mode(WiFiMode_t::WIFI_STA);
 
     wifi_disarm_timer();
 }
@@ -43,31 +69,26 @@ void wifi_update()
 {
     if (!_wifi_setupped)
     {
-        WiFi.setAutoReconnect(true);
-        WiFi.mode(WiFiMode_t::WIFI_STA);
-#if DEBUG >= 2
-        Serial.printf("status %d\n", WiFi.status());
-#endif
-
-        if (WiFi.status() == wl_status_t::WL_CONNECTED)
-        {
-#if DEBUG >= 2
-            Serial.printf("reconnecting to %s\n", WiFi.SSID().c_str());
-#endif
-            WiFi.reconnect();
-        }
-        else
-        {
-#if DEBUG >= 2
-            Serial.printf("connecting to %s\n", WiFi.SSID().c_str());
-#endif
-            //WiFi.begin();
-            WiFi.begin(WIFI_SSID, WIFI_KEY);
-        }
-        wifi_last_status = wifi_status::WIFI_CONNECTING;
-        _wifi_setupped = true;
-
+        _wifi_try_connect();
         wifi_arm_timer();
+        _wifi_setupped = true;
+    }
+    else
+    {
+        if (need_wifi_timeout_timer && millis() - wifi_timeout_timer > 30000)
+        {
+            if (wifi_timeout_timer_count < 3)
+            {
+                _wifi_try_connect();
+                wifi_timeout_timer = millis();
+            }
+            else
+            {
+                wifi_on_event(wifi_event::WIFI_ON_CONNECT_TIMEOUT);
+                _wifi_handle_timeout();
+                wifi_disarm_timer();
+            }
+        }
     }
 }
 
@@ -89,6 +110,7 @@ void wifi_disarm_timer()
     Serial.println("timer disarmed");
 #endif
     need_wifi_timeout_timer = false;
+    wifi_timeout_timer_count = 0;
 }
 
 wifi_status wifi_get_last_status()
@@ -98,6 +120,7 @@ wifi_status wifi_get_last_status()
 
 void wifi_on_mode_change(const WiFiEventModeChange& arg)
 {
+    if (need_wifi_suppress_events) return;
 #if DEBUG >= 2
     Serial.printf("wifi_on_mode_change() %d %d \n", arg.oldMode, arg.newMode);
 #endif
@@ -116,6 +139,7 @@ void wifi_on_mode_change(const WiFiEventModeChange& arg)
 
 void wifi_on_connected(const WiFiEventStationModeConnected& arg)
 {
+    if (need_wifi_suppress_events) return;
 #if DEBUG >= 2
     Serial.println("wifi_on_connected()");
 #endif
@@ -124,19 +148,22 @@ void wifi_on_connected(const WiFiEventStationModeConnected& arg)
 
 void wifi_on_disconnected(const WiFiEventStationModeDisconnected& arg)
 {
+    if (need_wifi_suppress_events) return;
 #if DEBUG >= 2
     Serial.println("wifi_on_disconnected()");
 #endif
     if (wifi_last_status == wifi_status::WIFI_CONNECTED)
     {
-        wifi_last_status = wifi_status::WIFI_CONNECTING;
+        wifi_last_status = wifi_status::WIFI_IDLE_STATUS;
         wifi_on_event(wifi_event::WIFI_ON_DISCONNECT);
+        _wifi_try_connect();
         wifi_arm_timer();
     }
 }
 
 void wifi_got_ip(const WiFiEventStationModeGotIP& arg)
 {
+    if (need_wifi_suppress_events) return;
 #if DEBUG >= 2
     Serial.println("wifi_got_ip()");
 #endif
@@ -150,17 +177,24 @@ void wifi_got_ip(const WiFiEventStationModeGotIP& arg)
 
 void wifi_got_ip_timeout()
 {
+    if (need_wifi_suppress_events) return;
 #if DEBUG >= 2
     Serial.println("wifi_got_ip_timeout()");
 #endif
 
-    wifi_disarm_timer();
     if (wifi_last_status != wifi_status::WIFI_CONNECTED)
     {
 #if DEBUG >= 2
         Serial.println("connect timeout");
 #endif
-        WiFi.setAutoReconnect(false);
         wifi_on_event(wifi_event::WIFI_ON_CONNECT_TIMEOUT);
+        _wifi_try_connect();
+        wifi_arm_timer();
     }
+}
+
+void wifi_suppress_events()
+{
+    need_wifi_suppress_events = true;
+    wifi_disarm_timer();
 }

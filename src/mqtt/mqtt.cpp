@@ -24,7 +24,7 @@ void mqtt_setup()
     sprintf(mqtt_device_topic, MQTT_TOPIC_PREFIX, get_device_name());
 }
 
-void mqtt_loop()
+void mqtt_update()
 {
     if (mqtt_reconnect_timer_armed && millis() - mqtt_reconnect_timer > mqtt_reconnect_time)
     {
@@ -45,6 +45,7 @@ void mqtt_connect(const char* login, const char* password)
     mqtt_client->setWill(mqtt_willtopic, 0, true, "offline");
 
     mqtt_client->connect();
+    statusbar_set_wifi_busy();
 }
 
 void mqtt_connect(IPAddress server, uint16_t port, const char* login, const char* password)

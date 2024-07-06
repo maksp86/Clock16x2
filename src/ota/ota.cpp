@@ -41,8 +41,9 @@ void ota_on_end()
 #if DEBUG >= 2
     Serial.println("ota_on_end");
 #endif
+    wifi_suppress_events();
     ota_progress_mode_init = false;
-    message_mode* mode = new message_mode(PSTR("OTA ok"), PSTR("rebooting"), NULL, 2000, true);
+    message_mode* mode = new message_mode(PSTR("OTA complete"), PSTR("rebooting"), NULL, 2000, true);
     display_show_mode(mode);
     display_update();
 }
@@ -54,11 +55,12 @@ void ota_on_progress(unsigned int progress, unsigned int total)
 #endif
     if (!ota_progress_mode_init)
     {
-        ota_progress_mode = new progress_mode(PSTR("OTA Updating"), false, 0, total);
+        ota_progress_mode = new progress_mode(PSTR("OTA progress"), false, 0, total);
         display_show_mode(ota_progress_mode);
         ota_progress_mode_init = true;
     }
     ota_progress_mode->set_progress(progress);
+    statusbar_set_wifi_busy();
     display_update();
 }
 

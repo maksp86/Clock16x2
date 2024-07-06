@@ -1,6 +1,6 @@
 #include "weather_mode.h"
-#include "weather_icons.h"
 
+#ifdef USE_HOMEASSISTANT
 
 weather_mode::weather_mode()
 {
@@ -13,7 +13,7 @@ weather_mode::~weather_mode()
 
 bool weather_mode::setup(LiquidCrystal_I2C* lcd, bool _from_interaction)
 {
-    if (!got_forecast) return false;
+    if (!got_forecast || !mqtt_is_connected()) return false;
     mode_state_setup = false;
     mode_state = 0;
     mode_state_change_cnt = 0;
@@ -78,7 +78,7 @@ void weather_mode::update(LiquidCrystal_I2C* lcd)
 
     if (text_down_len > 14)
     {
-        scrolling_text_loop(lcd);
+        scrolling_text_update(lcd);
     }
 }
 
@@ -196,3 +196,5 @@ void weather_mode::load_icons(LiquidCrystal_I2C* lcd, const char* condition)
     load_PGM_character_to(lcd, 2, icon_last_part);
     load_PGM_character_to(lcd, 3, icon_last_part + 8);
 }
+
+#endif

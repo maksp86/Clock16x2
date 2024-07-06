@@ -93,7 +93,7 @@ void scrolling_text_prepare(const char* text, uint8_t textlen, uint8_t speed, ui
 
 }
 
-void scrolling_text_loop(LiquidCrystal_I2C* lcd)
+void scrolling_text_update(LiquidCrystal_I2C* lcd)
 {
     if (scrollingTextContainer == NULL || scrolling_text_len < 16 || scrolling_width == 0)
         return;

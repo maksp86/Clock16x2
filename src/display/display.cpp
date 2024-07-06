@@ -86,11 +86,14 @@ void display_setup()
     lcd.backlight();
     lcd.write("Booting");
 
-    //display_modes = new DisplayMode * [10];
     //set persistent modes
     display_modes[display_persistent_modes_cnt++] = new time_mode();
-    // display_modes[display_persistent_modes_cnt++] = new test_mode();
-    //
+
+#ifdef HTU21D_ENABLED
+    display_modes[display_persistent_modes_cnt++] = new local_climate_mode();
+#endif
+    //set persistent modes
+
     display_modes_cnt = display_persistent_modes_cnt;
     curr_mode->setup(&lcd, false);
 }

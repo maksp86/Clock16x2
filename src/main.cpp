@@ -9,18 +9,26 @@
 
 #include "helpers.h"
 #include "display/display.h"
+
+#ifdef HTU21D_ENABLED
+#include "htu21d/htu21d.h"
+#endif
+
 #include "button/button.h"
 #include "wifi/wifi.h"
 #include "ntp/ntp.h"
 #include "ota/ota.h"
 #include "mqtt/mqtt.h"
 #include "message_from_mqtt.h"
-#include "display/appearance/lock.h"
 #include "display/modes/weather_mode/weather_mode.h"
+
+#ifdef USE_HOMEASSISTANT
+#include "display/appearance/lock.h"
 #include "mqtt/homeassistant_autodiscovery/hass_mqtt.h"
+weather_mode* display_weather_mode;
+#endif
 
 bool safe_start = false;
-weather_mode* display_weather_mode;
 
 void setup()
 {
@@ -47,8 +55,10 @@ void setup()
 	make_device_name();
 	display_setup();
 
+#ifdef USE_HOMEASSISTANT
 	display_weather_mode = new weather_mode();
 	display_add_mode(display_weather_mode);
+#endif
 
 	if (safe_start)
 	{
@@ -59,9 +69,14 @@ void setup()
 		return;
 	}
 
+#ifdef HTU21D_ENABLED
+	htu21d_setup();
+#endif
+
 	button_setup();
 	wifi_setup();
 	ntp_setup(NTP_SERVER, NTP_TIME_DELTA);
+
 	ota_setup();
 	mqtt_setup();
 
@@ -78,17 +93,30 @@ void loop()
 		return;
 	}
 	display_update();
+
+#ifdef HTU21D_ENABLED
+	htu21d_update();
+#endif
+
 	button_update();
 	wifi_update();
 	ntp_update();
 	ota_update();
-	mqtt_loop();
+	mqtt_update();
+
+#ifdef USE_HOMEASSISTANT
 	send_sensors();
+#endif
 }
 
 void button_callback(const char* pattern, uint8_t pattern_len, uint32_t press_time)
 {
-	display_on_interact(pattern, pattern_len);
+	if (strcmp(pattern, ("sssss")) == 0)
+	{
+		ESP.restart();
+	}
+	else
+		display_on_interact(pattern, pattern_len);
 }
 
 void wifi_on_event(wifi_event event)
@@ -100,7 +128,18 @@ void wifi_on_event(wifi_event event)
 
 	switch (event)
 	{
+	case wifi_event::WIFI_ON_CONNECT_TIMEOUT:
+		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("timeout"), NULL, 1000, true));
+		break;
+	case wifi_event::WIFI_ON_DISCONNECT:
+		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("disconnect"), NULL, 1000, true));
+		break;
+	case wifi_event::WIFI_ON_CONNECTING:
+		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("connecting"), NULL, 1000, true));
+		statusbar_set_wifi_busy();
+		break;
 	case wifi_event::WIFI_ON_CONNECTED:
+		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("connected"), NULL, 1000, true));
 		mqtt_connect(MQTT_BROKER_HOSTNAME, MQTT_BROKER_PORT, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
 		break;
 	}
@@ -108,17 +147,26 @@ void wifi_on_event(wifi_event event)
 
 void mqtt_on_connected(AsyncMqttClient* client)
 {
+	statusbar_set_wifi_busy();
+	subscribe_to_message(client);
+
+#ifdef USE_HOMEASSISTANT
 	autodiscovery_send(client);
 	subscribe_to_lock(client);
-	subscribe_to_message(client);
 	display_weather_mode->mqtt_subscribe(client);
+#endif
 }
 
 void mqtt_on_message(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
-	on_lock_message(topic, payload, len);
+	statusbar_set_wifi_busy();
 	check_message(topic, payload, len);
+
+#ifdef USE_HOMEASSISTANT
+	on_lock_message(topic, payload, len);
 	display_weather_mode->on_mqtt_data(topic, payload, len);
+#endif
+
 #if DEBUG >= 4
 	Serial.println("Publish received.");
 	Serial.print("  topic: ");

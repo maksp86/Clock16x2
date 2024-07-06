@@ -169,7 +169,7 @@ void message_mode::update(LiquidCrystal_I2C* lcd)
 {
     if ((icon_arr != NULL && message_len > 13) || (icon_arr == NULL && message_len > 15))
     {
-        scrolling_text_loop(lcd);
+        scrolling_text_update(lcd);
     }
 }
 
@@ -192,4 +192,3 @@ uint32_t message_mode::show_time()
 {
     return _show_time;
 }
-
