@@ -1,33 +1,29 @@
 #include "lock.h"
 
-char* lock_topic;
+char* lock_topic = nullptr;
 bool lock_state = false;
 
 void on_lock_message(char* topic, char* payload, size_t len)
 {
     if (strcmp(topic, lock_topic) == 0)
     {
-        if (strncmp(payload, "ON", 2) == 0)
+        if (len > 1 && payload[0] == 'O')
         {
+            lock_state = payload[1] == 'N';
 #if DEBUG >= 4
-            Serial.println("on_lock_message locked");
+            Serial.printf("on_lock_message %slocked", payload[1] == 'N' ? "un" : "");
 #endif
-            lock_state = true;
-        }
-        else if (strncmp(payload, "OFF", 3) == 0)
-        {
-          #if DEBUG >= 4
-            Serial.println("on_lock_message unlocked");
-#endif
-            lock_state = false;
         }
     }
 }
 
 void subscribe_to_lock(AsyncMqttClient* client)
 {
-    lock_topic = new char[strlen(mqtt_topic_start()) + 12];
-    sprintf(lock_topic, "%slock/set", mqtt_topic_start());
+    if (lock_topic == nullptr)
+    {
+        lock_topic = new char[strlen(mqtt_topic_start()) + 12];
+        sprintf(lock_topic, "%slock/set", mqtt_topic_start());
+    }
     client->subscribe(lock_topic, 0);
 }
 

@@ -1,13 +1,12 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
 #include <DNSServer.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-
 #include "helpers.h"
+#include "config/config.h"
 #include "display/display.h"
 
 #ifdef HTU21D_ENABLED
@@ -16,13 +15,16 @@
 
 #include "button/button.h"
 #include "wifi/wifi.h"
+#ifdef USE_WEBSERVER
+#include "webserver/webserver.h"
+#endif
 #include "ntp/ntp.h"
 #include "ota/ota.h"
 #include "mqtt/mqtt.h"
 #include "message_from_mqtt.h"
-#include "display/modes/weather_mode/weather_mode.h"
 
 #ifdef USE_HOMEASSISTANT
+#include "display/modes/weather_mode/weather_mode.h"
 #include "display/appearance/lock.h"
 #include "mqtt/homeassistant_autodiscovery/hass_mqtt.h"
 weather_mode* display_weather_mode;
@@ -32,6 +34,8 @@ bool safe_start = false;
 
 void setup()
 {
+	ESP.wdtDisable();
+	ESP.wdtEnable(WDTO_2S);
 #if DEBUG >= 1
 	Serial.begin(74880);
 #endif
@@ -52,6 +56,7 @@ void setup()
 		safe_start = false;
 	}
 
+	config_setup();
 	make_device_name();
 	display_setup();
 
@@ -64,7 +69,8 @@ void setup()
 	{
 		display_show_mode(new message_mode(PSTR("Safe mode"), PSTR("loaded"), NULL, 2000, false));
 		display_update();
-		WiFi.begin(WIFI_SSID, WIFI_KEY);
+		WiFi.mode(WiFiMode_t::WIFI_AP);
+		WiFi.softAP(get_device_name());
 		ArduinoOTA.begin();
 		return;
 	}
@@ -75,18 +81,33 @@ void setup()
 
 	button_setup();
 	wifi_setup();
-	ntp_setup(NTP_SERVER, NTP_TIME_DELTA);
+	ntp_setup();
 
 	ota_setup();
 	mqtt_setup();
+#ifdef USE_WEBSERVER
+	webserver_setup();
+#endif
 
 #if DEBUG >= 1
 	Serial.printf("%s successfully booted", get_device_name());
 #endif
 }
 
+#if DEBUG >= 5
+uint32_t memTestTimer = 0;
+#endif
+
 void loop()
 {
+	if (is_need_restart())
+	{
+		delay(1000);
+		wifi_suppress_events();
+		ESP.restart();
+		delay(5000);
+	}
+
 	if (safe_start)
 	{
 		ArduinoOTA.handle();
@@ -103,17 +124,30 @@ void loop()
 	ntp_update();
 	ota_update();
 	mqtt_update();
+#ifdef USE_WEBSERVER
+	webserver_loop();
+#endif
+	config_loop();
 
 #ifdef USE_HOMEASSISTANT
 	send_sensors();
 #endif
+
+#if DEBUG >= 5
+	if (millis() - memTestTimer > 2000)
+	{
+		Serial.printf("Free mem: %u\n", ESP.getFreeHeap());
+		memTestTimer = millis();
+	}
+#endif
+
 }
 
 void button_callback(const char* pattern, uint8_t pattern_len, uint32_t press_time)
 {
 	if (strcmp(pattern, ("sssss")) == 0)
 	{
-		ESP.restart();
+		set_need_restart();
 	}
 	else
 		display_on_interact(pattern, pattern_len);
@@ -121,32 +155,52 @@ void button_callback(const char* pattern, uint8_t pattern_len, uint32_t press_ti
 
 void wifi_on_event(wifi_event event)
 {
+	ntp_on_wifi_event(event);
+#ifdef USE_WEBSERVER
+	webserver_wifi_on_event(event);
+#endif
 #if DEBUG >= 2
 	Serial.printf("wifi_on_event() %d\n", (uint8_t)event);
 #endif
-	ntp_on_wifi_event(event);
 
 	switch (event)
 	{
 	case wifi_event::WIFI_ON_CONNECT_TIMEOUT:
+#if DEBUG >= 1
 		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("timeout"), NULL, 1000, true));
+#endif
 		break;
+
 	case wifi_event::WIFI_ON_DISCONNECT:
+#if DEBUG >= 1
 		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("disconnect"), NULL, 1000, true));
+#endif
+		mqtt_disconnect(true);
 		break;
+
 	case wifi_event::WIFI_ON_CONNECTING:
+#if DEBUG >= 1
 		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("connecting"), NULL, 1000, true));
+#endif
 		statusbar_set_wifi_busy();
 		break;
+
 	case wifi_event::WIFI_ON_CONNECTED:
-		display_show_mode(new message_mode(PSTR("wifi_event"), PSTR("connected"), NULL, 1000, true));
-		mqtt_connect(MQTT_BROKER_HOSTNAME, MQTT_BROKER_PORT, MQTT_BROKER_USERNAME, MQTT_BROKER_PASSWORD);
+		display_show_mode(new message_mode(PSTR("WiFi"), (F("connected to ") + WiFi.SSID()).c_str(), NULL, 5000, true));
+		mqtt_connect();
+		break;
+
+	case wifi_event::WIFI_ON_AP_START:
+		display_show_mode(new message_mode(PSTR("AP started"), (WiFi.softAPSSID() + String("/") + WiFi.softAPPSK()).c_str(), NULL, 1000, false));
 		break;
 	}
 }
 
 void mqtt_on_connected(AsyncMqttClient* client)
 {
+#if DEBUG >= 4
+	Serial.println("mqtt_on_connected");
+#endif
 	statusbar_set_wifi_busy();
 	subscribe_to_message(client);
 
@@ -167,13 +221,11 @@ void mqtt_on_message(char* topic, char* payload, AsyncMqttClientMessagePropertie
 	display_weather_mode->on_mqtt_data(topic, payload, len);
 #endif
 
+	// caused wdt reset
 #if DEBUG >= 4
 	Serial.println("Publish received.");
 	Serial.print("  topic: ");
 	Serial.println(topic);
-	Serial.print("  payload: ");
-	Serial.write(payload, total);
-	Serial.println();
 	Serial.print("  qos: ");
 	Serial.println(properties.qos);
 	Serial.print("  dup: ");
@@ -186,5 +238,8 @@ void mqtt_on_message(char* topic, char* payload, AsyncMqttClientMessagePropertie
 	Serial.println(index);
 	Serial.print("  total: ");
 	Serial.println(total);
+	Serial.print("  payload: ");
+	Serial.write(payload, len);
+	Serial.println();
 #endif
 }

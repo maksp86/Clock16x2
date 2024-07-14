@@ -1,5 +1,8 @@
 #include "wifi.h"
 
+char* wifi_ssid = nullptr;
+char* wifi_pass = nullptr;
+
 bool _wifi_setupped;
 wifi_status wifi_last_status = wifi_status::WIFI_IDLE_STATUS;
 //WiFiManager* wifi_manager;
@@ -17,7 +20,7 @@ void wifi_got_ip_timeout();
 
 bool need_wifi_timeout_timer;
 uint32_t wifi_timeout_timer;
-uint8_t wifi_timeout_timer_count;
+uint8_t wifi_timeout_timer_count = 0;
 void wifi_arm_timer();
 void wifi_disarm_timer();
 
@@ -29,10 +32,10 @@ void _wifi_try_connect()
     Serial.printf("status %d\n", WiFi.status());
 #endif
 
+    WiFi.begin(wifi_ssid, wifi_pass);
 #if DEBUG >= 2
-    Serial.printf("connecting to %s\n", WiFi.SSID().c_str());
+    Serial.printf("connecting to %s\n", wifi_ssid);
 #endif
-    WiFi.begin(WIFI_SSID, WIFI_KEY);
 
     wifi_last_status = wifi_status::WIFI_CONNECTING;
     wifi_on_event(wifi_event::WIFI_ON_CONNECTING);
@@ -40,14 +43,21 @@ void _wifi_try_connect()
 
 void _wifi_handle_timeout()
 {
+#if DEBUG >= 2
+    Serial.println("_wifi_handle_timeout");
+#endif
     wifi_last_status = wifi_status::WIFI_IDLE_STATUS;
     wifi_on_event(wifi_event::WIFI_ON_CONNECT_TIMEOUT);
+    wifi_start_ap();
     //TODO
 }
 
 void wifi_setup()
 {
     need_wifi_suppress_events = false;
+
+    bool configured = config_get_str("wifi_ssid", &wifi_ssid);
+    configured = configured && config_get_str("wifi_pass", &wifi_pass);
 
     onmodechanged = WiFi.onWiFiModeChange(&wifi_on_mode_change);
 
@@ -57,36 +67,46 @@ void wifi_setup()
     ondhcpdone = WiFi.onStationModeGotIP(&wifi_got_ip);
     ondhcptimeout = WiFi.onStationModeDHCPTimeout(&wifi_got_ip_timeout);
 
-    WiFi.setHostname(get_device_name());
+    WiFi.hostname(get_device_name());
     WiFi.setAutoConnect(false);
     WiFi.setAutoReconnect(false);
-    WiFi.mode(WiFiMode_t::WIFI_STA);
 
-    wifi_disarm_timer();
+    if (configured)
+    {
+        WiFi.mode(WiFiMode_t::WIFI_STA);
+        wifi_disarm_timer();
+    }
+    else
+    {
+        wifi_start_ap();
+    }
 }
 
 void wifi_update()
 {
-    if (!_wifi_setupped)
+    if (WiFi.getMode() == WiFiMode_t::WIFI_STA)
     {
-        _wifi_try_connect();
-        wifi_arm_timer();
-        _wifi_setupped = true;
-    }
-    else
-    {
-        if (need_wifi_timeout_timer && millis() - wifi_timeout_timer > 30000)
+        if (!_wifi_setupped)
         {
-            if (wifi_timeout_timer_count < 3)
+            _wifi_try_connect();
+            wifi_arm_timer();
+            _wifi_setupped = true;
+        }
+        else
+        {
+            if (need_wifi_timeout_timer && millis() - wifi_timeout_timer > 30000)
             {
-                _wifi_try_connect();
-                wifi_timeout_timer = millis();
-            }
-            else
-            {
-                wifi_on_event(wifi_event::WIFI_ON_CONNECT_TIMEOUT);
-                _wifi_handle_timeout();
-                wifi_disarm_timer();
+                if (wifi_timeout_timer_count < 3)
+                {
+                    _wifi_try_connect();
+                    wifi_timeout_timer_count++;
+                    wifi_timeout_timer = millis();
+                }
+                else
+                {
+                    _wifi_handle_timeout();
+                    wifi_disarm_timer();
+                }
             }
         }
     }
@@ -124,13 +144,13 @@ void wifi_on_mode_change(const WiFiEventModeChange& arg)
 #if DEBUG >= 2
     Serial.printf("wifi_on_mode_change() %d %d \n", arg.oldMode, arg.newMode);
 #endif
-    if (arg.oldMode == WiFiMode_t::WIFI_STA && arg.newMode == WiFiMode_t::WIFI_AP)
+    if (wifi_last_status != wifi_status::WIFI_AP_ENABLED && arg.newMode == WiFiMode_t::WIFI_AP)
     {
         wifi_last_status = wifi_status::WIFI_AP_ENABLED;
         wifi_on_event(wifi_event::WIFI_ON_AP_START);
     }
 
-    if (arg.oldMode == WiFiMode_t::WIFI_AP && arg.newMode == WiFiMode_t::WIFI_STA)
+    if (wifi_last_status == wifi_status::WIFI_AP_ENABLED && arg.newMode == WiFiMode_t::WIFI_STA)
     {
         wifi_last_status = wifi_status::WIFI_CONNECTING;
         wifi_on_event(wifi_event::WIFI_ON_AP_END);
@@ -197,4 +217,45 @@ void wifi_suppress_events()
 {
     need_wifi_suppress_events = true;
     wifi_disarm_timer();
+}
+
+
+
+void wifi_start_ap()
+{
+    if (WiFi.getMode() == WiFiMode_t::WIFI_AP)
+        return;
+
+#if DEBUG >= 2
+    Serial.println("wifi_start_ap");
+#endif
+
+    WiFi.disconnect();
+    char* ap_pass = new char[9];
+    generate_random_string(ap_pass, 8);
+    ap_pass[8] = '\0';
+    WiFi.softAP(get_device_name(), ap_pass);
+    WiFi.mode(WiFiMode_t::WIFI_AP);
+
+#if DEBUG >= 2
+    Serial.printf("wifi_start_ap %s %s\n", get_device_name(), ap_pass);
+#endif
+
+    delete[] ap_pass;
+}
+
+void wifi_end_ap()
+{
+    if (WiFi.getMode() == WiFiMode_t::WIFI_STA)
+        return;
+
+#if DEBUG >= 2
+    Serial.println("wifi_end_ap");
+#endif
+
+    if (wifi_last_status == wifi_status::WIFI_AP_ENABLED)
+    {
+        WiFi.softAPdisconnect();
+        WiFi.mode(WiFiMode_t::WIFI_STA);
+    }
 }

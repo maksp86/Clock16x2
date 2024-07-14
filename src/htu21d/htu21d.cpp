@@ -10,24 +10,24 @@ float htu21d_temp;
 float htu21d_hum;
 bool htu21d_connected;
 
+void _htu21d_read();
+
 void htu21d_setup()
 {
     if (htu21d.begin())
     {
 #if DEBUG >= 1
-        Serial.println("htu21d connected")
+        Serial.println("htu21d connected");
 #endif
-            htu21d_connected = true;
-        htu21d.read();
-        htu21d_temp = htu21d.getTemperature();
-        htu21d_hum = htu21d.getHumidity();
+        htu21d_connected = true;
+        _htu21d_read();
     }
     else
     {
 #if DEBUG >= 1
-        Serial.println("htu21d not found")
+        Serial.println("htu21d not found");
 #endif
-            htu21d_connected = false;
+        htu21d_connected = false;
     }
 
 }
@@ -36,9 +36,8 @@ void htu21d_update()
 {
     if ((millis() - htu21d_update_timer >= 60000) && htu21d_connected)
     {
-        htu21d.read();
-        htu21d_temp = htu21d.getTemperature();
-        htu21d_hum = htu21d.getHumidity();
+        _htu21d_read();
+        htu21d_update_timer = millis();
     }
 }
 
@@ -55,4 +54,12 @@ float htu21d_get_humidity()
     if (htu21d_connected) return htu21d_hum;
     else return -1;
 }
+
+void _htu21d_read()
+{
+    htu21d.read();
+    htu21d_temp = htu21d.getTemperature();
+    htu21d_hum = htu21d.getHumidity();
+}
+
 #endif

@@ -3,7 +3,7 @@
 
 uint32_t statusbar_timer;
 uint8_t statusbar_curr_mode = STATUSBAR_MODE_DEFAULT;
-uint8_t stausbar_last_signal_strength = 0;
+int8_t stausbar_last_signal_strength = 0;
 uint8_t stausbar_last_lock_state = false;
 
 bool wifi_is_busy = false;
@@ -84,6 +84,9 @@ void statusbar_update(LiquidCrystal_I2C* lcd)
             {
                 zeros = stausbar_last_signal_strength - 2;
             }
+            else
+                zeros = 8;
+
             break;
         }
 
@@ -114,8 +117,6 @@ void statusbar_update(LiquidCrystal_I2C* lcd)
             // memcpy_P(tmp, wifi_state_icon, 8);
             //memset(tmp, 0, zeros);
 
-            if (wifi_get_last_status() == wifi_status::WIFI_AP_ENABLED)
-                tmp[7] = B11111;
             lcd->createChar(STATUSBAR_WIFI_ICON_POS, tmp);
             lcd->setCursor(15, 0);
             lcd->write((char)STATUSBAR_WIFI_ICON_POS);

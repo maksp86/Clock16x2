@@ -84,7 +84,7 @@ void display_setup()
     lcd.init();
     lcd.setCursor(0, 0);
     lcd.backlight();
-    lcd.write("Booting");
+    lcd.write_P(PSTR("Booting"));
 
     //set persistent modes
     display_modes[display_persistent_modes_cnt++] = new time_mode();
@@ -96,6 +96,8 @@ void display_setup()
 
     display_modes_cnt = display_persistent_modes_cnt;
     curr_mode->setup(&lcd, false);
+
+    backlight_setup(&lcd);
 }
 
 void display_update()

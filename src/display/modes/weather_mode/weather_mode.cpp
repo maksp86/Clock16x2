@@ -116,7 +116,7 @@ void weather_mode::on_mqtt_data(char* topic, char* payload, size_t len)
 {
     if (strcmp(weather_topic, topic) == 0)
     {
-        StaticJsonDocument<256> forecast_json;
+        JsonDocument forecast_json;
         DeserializationError error = deserializeJson(forecast_json, payload, len);
 
         if (error) {
@@ -140,13 +140,17 @@ void weather_mode::on_mqtt_data(char* topic, char* payload, size_t len)
             weather_container.forecast[i].temperature_low = forecast_arr[i]["templow"];
         }
         got_forecast = true;
+        forecast_json.clear();
     }
 }
 
 void weather_mode::mqtt_subscribe(AsyncMqttClient* client)
 {
-    weather_topic = new char[strlen(mqtt_topic_start()) + 20];
-    sprintf(weather_topic, "%syaweather/status", mqtt_topic_start());
+    if (weather_topic == nullptr)
+    {
+        weather_topic = new char[strlen(mqtt_topic_start()) + 20];
+        sprintf(weather_topic, "%syaweather/status", mqtt_topic_start());
+    }
     client->subscribe(weather_topic, 0);
 }
 

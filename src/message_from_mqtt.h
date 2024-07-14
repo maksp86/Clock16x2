@@ -7,13 +7,13 @@
 #include "display/modes/message_mode/message_mode.h"
 #include "mqtt/mqtt.h"
 
-char* message_topic;
+char* message_topic = nullptr;
 
 void check_message(char* topic, char* payload, size_t len)
 {
     if (strcmp(topic, message_topic) == 0)
     {
-        StaticJsonDocument<96> message_json;
+        JsonDocument message_json;
         DeserializationError error = deserializeJson(message_json, payload, len);
         if (error) {
 #if DEBUG >= 4
@@ -63,13 +63,18 @@ void check_message(char* topic, char* payload, size_t len)
 
         if (iconarr != NULL)
             free(iconarr);
+
+        message_json.clear();
     }
 }
 
 void subscribe_to_message(AsyncMqttClient* client)
 {
-    message_topic = new char[strlen(mqtt_topic_start()) + 10];
-    sprintf(message_topic, "%smessage", mqtt_topic_start());
+    if (message_topic == nullptr)
+    {
+        message_topic = new char[strlen(mqtt_topic_start()) + 10];
+        sprintf(message_topic, "%smessage", mqtt_topic_start());
+    }
     client->subscribe(message_topic, 0);
 }
 #endif // __MESSAGE_FROM_MQTT_H__

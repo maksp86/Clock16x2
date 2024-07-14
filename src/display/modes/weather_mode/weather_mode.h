@@ -39,7 +39,7 @@ private:
     bool from_interaction = false;
     char text_down[32];
     uint8_t text_down_len;
-    char* weather_topic;
+    char* weather_topic = nullptr;
     weather_object weather_container;
 
     void load_icons(LiquidCrystal_I2C* lcd, const char* condition);

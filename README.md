@@ -5,6 +5,12 @@
 
 ### Also / также:
 - All board-depend defines must be in defines.h / все железозависимые переменные должны находиться в файле defines.h
+- Other configuration is done through editing and uploading config.json file in LittleFS/through web interface
+
+### Installation / установка:
+- Edit `defines.h` according to your build / внести изменения в `defines.h` в соответствии с вашим устройством
+- Build and upload fs image / собрать и залить образ файловой системы
+- Build and upload `_minimal` firmware version, it can be later updraded through OTA / собрать и залить `_minimal` прошивку, ёё можно обновлять по воздуху
 
 ### Пояснения
 - На устройство можно отправлять сообщения в формате JSON ([пример для pyscript](homeassistant_addons/pyscript/track_name_to_16x2Clock.py)):
@@ -55,10 +61,3 @@
   Топик для отправки: MQTT_TOPIC_PREFIX/lock/set
   Формат: ON/OFF, retain: true
   [Пример автоматизации для homeassistant](./homeassistant_addons/automation_lock.yaml)
-
-### TODO:  
-- [ ] Add wifimanager or something?
-- [ ] Reduce ram usage
-- [ ] Optimize code
-- [ ] Add some animations
-- [ ] ~~MAKE AMERICA GREAT AGAIN~~

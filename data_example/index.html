@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>%DEV_NAME% index</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<script>
+    const nav=(l)=>window.location.href=l;
+</script>
+<body>
+    <div id="maindiv">
+        <h2>%DEV_NAME% index page</h2>
+        <table id="tbl"></table>
+        <button onclick="nav('/reboot')">Reboot</button>
+        <button onclick="nav('/upload.htm')">Upload</button>
+        <button onclick="nav('/config.htm')">Config</button>
+    </div>
+</body>
+<script>
+    var t=document.getElementById("tbl"); const addkeys=(o,j)=>{t.insertAdjacentHTML("beforeend","<td><h3>"+j+"</h3></td>");Object.keys(o).forEach(i=>(o[i]===Object(o[i]))?addkeys(o[i],i):t.insertAdjacentHTML("beforeend",`<tr><td>${i}</td><td>${o[i]}</td></tr>`));};fetch("/getstatus").then(b=>b.text().then(k=>addkeys(JSON.parse(k),'')));
+</script>
+
+</html>

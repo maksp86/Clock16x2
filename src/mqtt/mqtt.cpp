@@ -2,6 +2,11 @@
 
 AsyncMqttClient* mqtt_client;
 
+char* mqtt_host = nullptr;
+long mqtt_port = 0;
+char* mqtt_user = nullptr;
+char* mqtt_password = nullptr;
+
 bool mqtt_reconnect_timer_armed;
 uint32_t mqtt_reconnect_timer;
 uint16_t mqtt_reconnect_time;
@@ -13,6 +18,7 @@ void mqtt_connected_callback(bool sessionPresent);
 char* mqtt_device_topic;
 void mqtt_setup()
 {
+    mqtt_reconnect_time = 10000;
     mqtt_client = new AsyncMqttClient();
     mqtt_client->onConnect(&mqtt_connected_callback);
     mqtt_client->onDisconnect(&mqtt_disconnected_callback);
@@ -28,14 +34,20 @@ void mqtt_update()
 {
     if (mqtt_reconnect_timer_armed && millis() - mqtt_reconnect_timer > mqtt_reconnect_time)
     {
+#if DEBUG >= 4
+        Serial.println("mqtt_reconnect");
+#endif
         mqtt_client->connect();
-        mqtt_reconnect_timer_armed = false;
         mqtt_reconnect_timer = millis();
     }
+
 }
 
 void mqtt_connect(const char* login, const char* password)
 {
+    if (mqtt_is_connected())
+        return;
+
     mqtt_client->setClientId(get_device_name());
     mqtt_client->setCredentials(login, password);
     sprintf(mqtt_willtopic, "%sstate", mqtt_topic_start());
@@ -48,29 +60,51 @@ void mqtt_connect(const char* login, const char* password)
     statusbar_set_wifi_busy();
 }
 
-void mqtt_connect(IPAddress server, uint16_t port, const char* login, const char* password)
+void mqtt_connect()
 {
-    if (mqtt_is_connected())
+    mqtt_disconnect(true);
+    if (!config_get_str("mqtt_host", &mqtt_host) || !config_get_long("mqtt_port", &mqtt_port))
         return;
 
-    mqtt_client->setServer(server, port);
-    mqtt_connect(login, password);
+    config_get_str("mqtt_user", &mqtt_user);
+    config_get_str("mqtt_pass", &mqtt_password);
 
+#if DEBUG >= 4
+    Serial.printf("mqtt_connect %s %u %s %s\n", mqtt_host, mqtt_port, mqtt_user, mqtt_password);
+#endif
+
+    mqtt_client->setServer(mqtt_host, mqtt_port);
+    mqtt_connect(mqtt_user, mqtt_password);
 }
 
-void mqtt_connect(const char* server, uint16_t port, const char* login, const char* password)
-{
-    if (mqtt_is_connected())
-        return;
+// void mqtt_connect(IPAddress server, uint16_t port, const char* login, const char* password)
+// {
+//     mqtt_client->setServer(server, port);
+//     mqtt_connect(login, password);
 
-    mqtt_client->setServer(server, port);
-    mqtt_connect(login, password);
+// }
 
-}
+// void mqtt_connect(const char* server, uint16_t port, const char* login, const char* password)
+// {
+//     mqtt_client->setServer(server, port);
+//     mqtt_connect(login, password);
+// }
 
 void mqtt_disconnect(bool force)
 {
     mqtt_client->disconnect(force);
+    mqtt_reconnect_timer_armed = false;
+
+    if (mqtt_host)
+        delete[] mqtt_host;
+
+    if (mqtt_user)
+        delete[] mqtt_user;
+
+    if (mqtt_password)
+        delete[] mqtt_password;
+
+    mqtt_host = mqtt_user = mqtt_password = nullptr;
 }
 
 bool mqtt_is_connected()
@@ -105,7 +139,6 @@ void mqtt_disconnected_callback(AsyncMqttClientDisconnectReason reason)
         if (wifi_get_last_status() == wifi_status::WIFI_CONNECTED)
         {
             mqtt_reconnect_timer_armed = true;
-            mqtt_reconnect_time = 10000;
             mqtt_reconnect_timer = millis();
         }
         else
@@ -119,6 +152,7 @@ void mqtt_connected_callback(bool sessionPresent)
 #if DEBUG >= 4
     Serial.printf("mqtt_connected_callback %d\n", sessionPresent);
 #endif
+    mqtt_reconnect_timer_armed = false;
 
     char* topicbuf = new char[64];
 

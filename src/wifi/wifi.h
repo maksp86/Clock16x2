@@ -2,8 +2,10 @@
 #define __WIFI_H__
 
 #include "Arduino.h"
+#include "ESP8266WiFi.h"
 
 #include "helpers.h"
+#include "config/config.h"
 
 typedef enum {
     WIFI_IDLE_STATUS = 0,
@@ -24,6 +26,8 @@ typedef enum {
     WIFI_ON_CONNECTING = 8
 } wifi_event;
 
+void wifi_start_ap();
+void wifi_end_ap();
 void wifi_setup();
 void wifi_update();
 void wifi_on_event(wifi_event event);

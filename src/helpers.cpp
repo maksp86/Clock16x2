@@ -54,6 +54,17 @@ uint8_t* hex2bin(const char* str)
     return result;
 }
 
+bool restart_requested = false;
+bool is_need_restart()
+{
+    return restart_requested;
+}
+
+void set_need_restart()
+{
+    restart_requested = true;
+}
+
 void lcd_print_int(LiquidCrystal_I2C* lcd, uint32_t value)
 {
     lcd->rightToLeft();
@@ -74,10 +85,27 @@ const char* get_device_name()
     return devname_buffer;
 }
 
+void generate_random_string(char* out, size_t len)
+{
+    size_t i = 0;
+    while (i < len)
+    {
+        char next = random(48, 123);
+        if ((next > 57 && next < 65) || (next > 90 && next < 97))
+            next -= 6;
+        out[i] = next;
+        i++;
+    }
+}
+
 void make_device_name()
 {
-    devname_buffer = new char[20];
-    uint8_t len = sprintf(devname_buffer, "%s-%x", DEVICE_NAME_PREFIX, ESP.getChipId());
+    char* device_name_prefix = nullptr;
+    bool res = config_get_str("dev_prefix", &device_name_prefix);
+    devname_buffer = new char[10 + (res ? strlen(device_name_prefix) : 10)];
+    uint8_t len = sprintf(devname_buffer, "%s-%x", res ? device_name_prefix : "espclock", ESP.getChipId());
+    if (res)
+        delete[] device_name_prefix;
     //devname_buffer[len] = '\0';
 }
 
@@ -102,4 +130,11 @@ void load_PGM_character_to(LiquidCrystal_I2C* lcd, uint8_t place, const uint8_t*
     uint8_t tmp[8];
     memcpy_P(tmp, character, 8);
     lcd->createChar(place, tmp);
+}
+
+int strchrs(char* str, char chr)
+{
+    int n;
+    for (n = 0; str[n]; str[n] == chr ? n++ : *str++);
+    return n;
 }

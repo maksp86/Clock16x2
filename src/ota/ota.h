@@ -12,4 +12,9 @@
 
 void ota_setup();
 void ota_update();
+
+void ota_on_start();
+void ota_on_end();
+void ota_on_progress(unsigned int progress, unsigned int total);
+void ota_on_error(ota_error_t error);
 #endif // __OTA_H__

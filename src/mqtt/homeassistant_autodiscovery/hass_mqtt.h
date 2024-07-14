@@ -9,6 +9,7 @@
 #include "helpers.h"
 #include "mqtt/mqtt.h"
 #include "htu21d/htu21d.h"
+#include "config/config.h"
 
 void autodiscovery_send(AsyncMqttClient* client);
 void send_sensors(bool force = false);

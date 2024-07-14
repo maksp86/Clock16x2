@@ -93,6 +93,8 @@ void scrolling_text_prepare(const char* text, uint8_t textlen, uint8_t speed, ui
 
 }
 
+uint8_t skip_upd_count = 0;
+
 void scrolling_text_update(LiquidCrystal_I2C* lcd)
 {
     if (scrollingTextContainer == NULL || scrolling_text_len < 16 || scrolling_width == 0)
@@ -105,20 +107,32 @@ void scrolling_text_update(LiquidCrystal_I2C* lcd)
     }
     set_scrolling_speed_cnt(0);
 
+    if (skip_upd_count > 0)
+    {
+        skip_upd_count--;
+        return;
+    }
+
     lcd->setCursor(scrolling_pos >> 4, scrolling_pos & 0x0f);
     if (get_scrolling_dir)
     {
         if ((scrolling_text_len - 1 - scrolling_i - (scrolling_width - 1)) > 0)
             scrolling_i++;
         else
+        {
+            skip_upd_count = 3;
             set_scrolling_dir(false);
+        }
     }
     else
     {
         if (scrolling_i > 0)
             scrolling_i--;
         else
+        {
+            skip_upd_count = 3;
             set_scrolling_dir(true);
+        }
     }
     lcd->write((uint8_t*)(scrolling_text + scrolling_i), scrolling_width);
 }

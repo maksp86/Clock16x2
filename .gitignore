@@ -4,4 +4,6 @@
 .vscode/launch.json
 .vscode/settings.json
 .vscode/ipch
+.vscode/*
 src/defines.h
+data/*.json

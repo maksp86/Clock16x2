@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>%DEV_NAME% config</title>
+    <link rel="stylesheet" href="style.css" />
+    <script>
+        var p = {};
+        var j = ['text', 'number', 'number', 'checkbox'];
+        var s = (e) => {
+            e.preventDefault();
+            [...e.target.elements].forEach(l => (l.name in p) && (p[l.name]["v"] = l.value ? (l.type == j[3] ? l.checked : (l.type == j[2] ? Number(l.value) : l.value)) : undefined));
+            var d = new FormData();
+            d.append('file', new File([new Blob([JSON.stringify(p)])], "%CONFNAME%"));
+            fetch("/upload", { method: "post", body: d }).then(r => r.text().then(s => { document.getElementById("maindiv").innerHTML = s || "Error"; }));
+            return false;
+        }
+        const addkeys = (o, m, t) => {
+            p = o;
+            t.insertAdjacentHTML("beforeend", "<td><h3>" + m + "</h3></td>");
+            Object.keys(o).forEach(i => t.insertAdjacentHTML("beforeend", `<tr><td>${i.replace('_', ' ')}</td><td><input name="${i}" type="${j[o[i]['t'] - 1]}" ${o[i]['t'] == 4 ? (!o[i]['v'] || 'checked') : `value="${o[i]['v'] || ""}"`}></td></tr>`));
+        };
+    </script>
+</head>
+
+<body>
+    <div id="maindiv">
+        <h2>
+            %DEV_NAME% configuration
+        </h2>
+        <form onsubmit="return s(event)">
+            <table id="tbl">
+            </table>
+            <button>Save</button>
+        </form>
+    </div>
+</body>
+<script>
+    fetch("/getconfig").then(b => b.text().then(k => addkeys(JSON.parse(k), "", document.getElementById("tbl"))));
+</script>
+
+</html>

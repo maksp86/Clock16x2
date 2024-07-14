@@ -1,0 +1,39 @@
+{
+    "wifi_ssid": {
+        "t": 1
+    },
+    "wifi_pass": {
+        "t": 1
+    },
+    "mqtt_host": {
+        "t": 1
+    },
+    "mqtt_port": {
+        "t": 2,
+        "v": 1883
+    },
+    "mqtt_user": {
+        "t": 1
+    },
+    "mqtt_pass": {
+        "t": 1
+    },
+    "ota_pass": {
+        "t": 1
+    },
+    "dev_prefix": {
+        "t": 1,
+        "v": "espclock"
+    },
+    "ntp_host": {
+        "t": 1,
+        "v": "pool.ntp.org"
+    },
+    "ntp_offset": {
+        "t": 2,
+        "v": 0
+    },
+    "night_mode_time": {
+        "t": 1
+    }
+}
