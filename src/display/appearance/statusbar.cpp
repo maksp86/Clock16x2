@@ -43,7 +43,7 @@ void statusbar_set_wifi_busy()
 
 void statusbar_update(LiquidCrystal_I2C* lcd)
 {
-    if (millis() - statusbar_timer > 300)
+    if (millis() - statusbar_timer > 1000)
     {
         if (stausbar_last_lock_state != get_lock_state())
         {

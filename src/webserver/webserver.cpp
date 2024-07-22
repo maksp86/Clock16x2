@@ -3,6 +3,7 @@
 #ifdef USE_WEBSERVER
 
 #include "routes/upload_route.h"
+#include "routes/message_route.h"
 
 DNSServer* dns;
 AsyncWebServer* server;
@@ -54,6 +55,8 @@ void webserver_setup()
         request->send_P(200, "text/html", PSTR("<meta http-equiv=\"refresh\" content=\"5;url=/\"/>Device is now rebooting"));
         set_need_restart();
         });
+
+    server->onRequestBody(handleBody);
 
     server->on("/upload", HTTP_POST, [](AsyncWebServerRequest* request) { request->send(200); }, handleUpload);
 

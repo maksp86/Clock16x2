@@ -47,9 +47,9 @@ void printBigNum(LiquidCrystal_I2C* lcd, uint8_t number, uint8_t startCol, uint8
 void set_dots(LiquidCrystal_I2C* lcd, bool state)
 {
     lcd->setCursor(6, 0);
-    lcd->write(state ? '.' : ' ');
+    lcd->write(state ? 0b10100101 : 254);
     lcd->setCursor(6, 1);
-    lcd->write(state ? '.' : ' ');
+    lcd->write(state ? 0b10100101 : 254);
 }
 
 

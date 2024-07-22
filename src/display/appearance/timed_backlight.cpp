@@ -48,11 +48,24 @@ void backlight_setup(LiquidCrystal_I2C* lcd)
             BACKLIGHT_NIGHTMODE_END_MIN = atoi(next_ptr);
 
 #if DEBUG >= 4
-            Serial.printf_P(PSTR("night_mode_time (%s) parsed to %d:%d-%d:%d\n"), bl_conf_str, BACKLIGHT_NIGHTMODE_START_HR, BACKLIGHT_NIGHTMODE_START_MIN, BACKLIGHT_NIGHTMODE_END_HR, BACKLIGHT_NIGHTMODE_END_MIN);
+            Serial.printf_P(PSTR("night_mode_time (%s) parsed to %d:%d-%d:%d\n"),
+                bl_conf_str,
+                BACKLIGHT_NIGHTMODE_START_HR,
+                BACKLIGHT_NIGHTMODE_START_MIN,
+                BACKLIGHT_NIGHTMODE_END_HR,
+                BACKLIGHT_NIGHTMODE_END_MIN);
 #endif
         }
         delete[] bl_conf_str;
     }
+}
+
+bool backlight_check_time(tm* tm_ptr)
+{
+    return (tm_ptr->tm_hour == BACKLIGHT_NIGHTMODE_START_HR && tm_ptr->tm_hour == BACKLIGHT_NIGHTMODE_END_HR) ?
+        (tm_ptr->tm_min >= BACKLIGHT_NIGHTMODE_START_MIN && tm_ptr->tm_min <= BACKLIGHT_NIGHTMODE_END_MIN)
+        : (((tm_ptr->tm_hour == BACKLIGHT_NIGHTMODE_START_HR && tm_ptr->tm_min >= BACKLIGHT_NIGHTMODE_START_MIN) || tm_ptr->tm_hour > BACKLIGHT_NIGHTMODE_START_HR) ||
+            ((tm_ptr->tm_hour == BACKLIGHT_NIGHTMODE_END_HR && tm_ptr->tm_min <= BACKLIGHT_NIGHTMODE_END_MIN) || tm_ptr->tm_hour < BACKLIGHT_NIGHTMODE_END_HR));
 }
 
 void backlight_update(LiquidCrystal_I2C* lcd)
@@ -60,8 +73,7 @@ void backlight_update(LiquidCrystal_I2C* lcd)
     if (!backlight_on_timer_armed && ntp_time_set() && millis() - backlight_update_timer > 1000)
     {
         tm* tm_ptr = localtime(ntp_get_epoch_time());
-        if (((tm_ptr->tm_hour == BACKLIGHT_NIGHTMODE_START_HR && tm_ptr->tm_min >= BACKLIGHT_NIGHTMODE_START_MIN) || tm_ptr->tm_hour > BACKLIGHT_NIGHTMODE_START_HR) ||
-            ((tm_ptr->tm_hour == BACKLIGHT_NIGHTMODE_END_HR && tm_ptr->tm_min <= BACKLIGHT_NIGHTMODE_END_MIN) || tm_ptr->tm_hour < BACKLIGHT_NIGHTMODE_END_HR) || get_lock_state())
+        if (backlight_check_time(tm_ptr) || get_lock_state())
         {
             if (backlight_state)
             {

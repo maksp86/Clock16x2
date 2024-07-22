@@ -214,7 +214,7 @@ void mqtt_on_connected(AsyncMqttClient* client)
 void mqtt_on_message(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
 	statusbar_set_wifi_busy();
-	check_message(topic, payload, len);
+	on_message_mqtt(topic, payload, len);
 
 #ifdef USE_HOMEASSISTANT
 	on_lock_message(topic, payload, len);

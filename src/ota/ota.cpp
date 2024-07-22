@@ -15,9 +15,16 @@ void ota_setup()
     ArduinoOTA.onEnd(&ota_on_end);
     ArduinoOTA.onProgress(&ota_on_progress);
     ArduinoOTA.onError(&ota_on_error);
-#ifdef OTA_PASSWORD
-    ArduinoOTA.setPassword(OTA_PASSWORD);
-#endif
+
+    char* ota_pass;
+    if (config_get_str("ota_pass", &ota_pass))
+    {
+        if (strcmp(ota_pass, "") != 0)
+            ArduinoOTA.setPassword(ota_pass);
+        delete[] ota_pass;
+    }
+
+
     ArduinoOTA.begin(true);
 }
 
