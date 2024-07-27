@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>%DEV_NAME% message</title>
+    <title>@DEV_NAME@ message</title>
     <link rel="stylesheet" href="style.css">
     <style>
         #draw {
@@ -20,7 +20,6 @@
         }
     </style>
     <script>
-        var mod = (a, b) => (a - (b * Math.floor(a / b)));
         var rs = () => { };
         var s = (e) => {
             e.preventDefault();
@@ -35,7 +34,7 @@
 <body>
     <div id="maindiv">
         <h2>
-            %DEV_NAME% message
+            @DEV_NAME@ message
         </h2>
 
         <div id="draw">
@@ -82,8 +81,8 @@
                 d.addEventListener('mousedown', function () {
                     var s = d.style.backgroundColor == "white";
                     d.style.backgroundColor = (s ? null : "white");
-                    let bn = ((x >= 5) + (y >= 8) * 2) * 8 + mod(y, 8);
-                    ps[bn] = sb(ps[bn], (4 - mod(x, 5)), !s);
+                    let bn = ((x >= 5) + (y >= 8) * 2) * 8 + (y % 8);
+                    ps[bn] = sb(ps[bn], (4 - (x % 5)), !s);
                     ic.value = Array.from(ps).map((b) => b.toString(16).padStart(2, "0")).join("");
                 })
                 dr.appendChild(d);

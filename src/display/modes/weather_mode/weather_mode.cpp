@@ -27,7 +27,7 @@ void weather_mode::update(LiquidCrystal_I2C* lcd)
     {
         lcd->clear();
         statusbar_set_mode(lcd, STATUSBAR_MODE_DEFAULT);
-        load_icons(lcd, mode_state == 0 ? weather_container.cond : weather_container.forecast[mode_state - 1].cond);
+        load_icons(lcd, mode_state == MODE_STATE_CURRENT_TEMP ? weather_container.cond : weather_container.forecast[mode_state - 1].cond);
         load_PGM_character_to(lcd, 4, temp_icon);
         load_PGM_character_to(lcd, 5, humidity_icon);
 
@@ -40,16 +40,17 @@ void weather_mode::update(LiquidCrystal_I2C* lcd)
 
         lcd->setCursor(2, 0);
 
-        if (mode_state == 0)
+        if (mode_state == MODE_STATE_CURRENT_TEMP)
         {
             lcd->write(weather_container.cond);
-            text_down_len = sprintf(text_down, "%c%d%cC %c%d%%", (char)4, weather_container.temperature, (char)223, (char)5, weather_container.humidity);
+            text_down_len = sprintf_P(text_down, PSTR("%c%d%cC %c%d%%"), (char)4, weather_container.temperature, (char)223, (char)5, weather_container.humidity);
         }
         else
         {
             lcd->write(weather_container.forecast[mode_state - 1].cond);
-            text_down_len = sprintf(text_down, "%c%d%cC/%d%cC", (char)4, weather_container.forecast[mode_state - 1].temperature, (char)223, weather_container.forecast[mode_state - 1].temperature_low, (char)223);
+            text_down_len = sprintf_P(text_down, PSTR("%c%d%cC/%d%cC"), (char)4, weather_container.forecast[mode_state - 1].temperature, (char)223, weather_container.forecast[mode_state - 1].temperature_low, (char)223);
         }
+
         if (text_down_len > 14)
         {
             scrolling_text_prepare(text_down, text_down_len, 5, 2, 1, 14);
@@ -149,7 +150,7 @@ void weather_mode::mqtt_subscribe(AsyncMqttClient* client)
     if (weather_topic == nullptr)
     {
         weather_topic = new char[strlen(mqtt_topic_start()) + 20];
-        sprintf(weather_topic, "%syaweather/status", mqtt_topic_start());
+        sprintf_P(weather_topic, PSTR("%syaweather/status"), mqtt_topic_start());
     }
     client->subscribe(weather_topic, 0);
 }
@@ -159,38 +160,41 @@ void weather_mode::load_icons(LiquidCrystal_I2C* lcd, const char* condition)
     uint8_t* icon_first_part = weather_icon_cloud_up;
     uint8_t* icon_last_part = weather_icon_cloud_down_default;
 
-    if (strncmp(condition, "snowy", 5) == 0)
+    if (condition[0] == 's') //sunny or snowy
     {
-        icon_last_part = weather_icon_cloud_down_snow;
+        if (condition[1] == 'u') //sunny
+        {
+            icon_first_part = weather_icon_sun;
+            icon_last_part = weather_icon_sun + 16;
+        }
+        else if (condition[1] == 'n') //snowy
+        {
+            icon_last_part = weather_icon_cloud_down_snow;
+        }
     }
-    else if (strncmp(condition, "windy", 5) == 0)
+    else if (condition[0] == 'w') //windy
     {
         icon_first_part = weather_icon_windy;
         icon_last_part = weather_icon_windy + 16;
     }
-    else if (strncmp(condition, "sunny", 5) == 0)
-    {
-        icon_first_part = weather_icon_sun;
-        icon_last_part = weather_icon_sun + 16;
-    }
-    else if (strncmp(condition, "clear", 5) == 0)
+    else if (condition[0] == 'c' && condition[2] == 'e') //clear
     {
         icon_first_part = weather_icon_moon;
         icon_last_part = weather_icon_moon + 16;
     }
-    else if (strncmp(condition, "light", 5) == 0)
-    {
-        icon_last_part = weather_icon_cloud_down_lightning;
-    }
-    else if (strncmp(condition, "pouring", 7) == 0)
+    else if (condition[0] == 'p') //pouring
     {
         icon_last_part = weather_icon_cloud_down_big_rain;
     }
-    else if (strncmp(condition, "rainy", 5) == 0)
+    else if (condition[0] == 'r') //rainy
     {
         icon_last_part = weather_icon_cloud_down_mid_rain;
     }
-    else if (strncmp(condition, "fog", 3) == 0)
+    else if (condition[0] == 'l') //lightning
+    {
+        icon_last_part = weather_icon_cloud_down_lightning;
+    }
+    else if (condition[0] == 'f') //fog
     {
         icon_last_part = weather_icon_cloud_down_fog;
     }

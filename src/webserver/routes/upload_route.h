@@ -29,7 +29,7 @@ void handleUploadConfig(AsyncWebServerRequest* request, String filename, size_t 
 
     if (final) {
         request->_tempFile.close();
-        request->send(200, "text/plain", F("<meta http-equiv=\"refresh\" content=\"5;url=/\"/>Uploaded config ") + filename);
+        request->send(200, "text/html", F("<meta http-equiv=\"refresh\" content=\"5;url=/\"/>Uploaded config ") + filename);
         set_need_restart();
     }
 }
@@ -43,9 +43,18 @@ void handleUploadFirmwareSendError(AsyncWebServerRequest* request)
 void handleUploadFirmware(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len, bool final)
 {
     if (!index) {
-        int cmd = (upload_file_type == UPLOADFILETYPE_OTA ? U_FLASH : U_FS);
+        int cmd = U_FLASH;
+        uint32_t upd_size = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+
+        if (upload_file_type == UPLOADFILETYPE_OTA_FS)
+        {
+            cmd = U_FS;
+            upd_size = FS_end - FS_start;
+            close_all_fs();
+        }
+
         Update.runAsync(true);
-        if (!Update.begin(request->contentLength(), cmd)) {
+        if (!Update.begin(upd_size, cmd)) {
             handleUploadFirmwareSendError(request);
             return;
         }
@@ -54,7 +63,7 @@ void handleUploadFirmware(AsyncWebServerRequest* request, String filename, size_
     }
 
     if (len) {
-        if (Update.write(data, len) != len) {
+        if (Update.write(data, len) != len || Update.hasError()) {
             handleUploadFirmwareSendError(request);
             return;
         }
@@ -66,7 +75,7 @@ void handleUploadFirmware(AsyncWebServerRequest* request, String filename, size_
     if (final) {
         if (Update.end(true))
         {
-            request->send_P(200, "text/plain", PSTR("<meta http-equiv=\"refresh\" content=\"5;url=/\"/>OTA completed"));
+            request->send_P(200, "text/html", PSTR("<meta http-equiv=\"refresh\" content=\"5;url=/\"/>OTA completed"));
             ota_on_end();
         }
         else
@@ -89,9 +98,9 @@ void handleUpload(AsyncWebServerRequest* request, String filename, size_t index,
         {
             if (filename.compareTo(CONFIG_FILENAME) == 0)
                 upload_file_type = UPLOADFILETYPE_CONFIG;
-            else if (filename.endsWith("fs.bin"))
+            else if (filename.endsWith("fs.bin") || filename.endsWith("fs.bin.gz"))
                 upload_file_type = UPLOADFILETYPE_OTA_FS;
-            else if (filename.endsWith("firmware.bin"))
+            else if (filename.endsWith("re.bin") || filename.endsWith("re.bin.gz"))
                 upload_file_type = UPLOADFILETYPE_OTA;
             else
             {
@@ -120,5 +129,8 @@ void handleUpload(AsyncWebServerRequest* request, String filename, size_t index,
     default:
         return;
     }
+
+    if (final)
+        upload_file_type = UPLOADFILETYPE_OTHER;
 }
 #endif // __UPLOAD_ROUTE_H__

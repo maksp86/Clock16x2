@@ -71,7 +71,7 @@ void subscribe_to_message(AsyncMqttClient* client)
     if (message_topic == nullptr)
     {
         message_topic = new char[strlen(mqtt_topic_start()) + 10];
-        sprintf(message_topic, "%smessage", mqtt_topic_start());
+        sprintf_P(message_topic, PSTR("%smessage"), mqtt_topic_start());
     }
     client->subscribe(message_topic, 0);
 }

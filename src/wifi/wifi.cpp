@@ -94,7 +94,7 @@ void wifi_update()
         }
         else
         {
-            if (need_wifi_timeout_timer && millis() - wifi_timeout_timer > 30000)
+            if (need_wifi_timeout_timer && millis() - wifi_timeout_timer > 15000)
             {
                 if (wifi_timeout_timer_count < 3)
                 {

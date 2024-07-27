@@ -22,7 +22,7 @@ void subscribe_to_lock(AsyncMqttClient* client)
     if (lock_topic == nullptr)
     {
         lock_topic = new char[strlen(mqtt_topic_start()) + 12];
-        sprintf(lock_topic, "%slock/set", mqtt_topic_start());
+        sprintf_P(lock_topic, PSTR("%slock/set"), mqtt_topic_start());
     }
     client->subscribe(lock_topic, 0);
 }

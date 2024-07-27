@@ -23,7 +23,7 @@ bool local_climate_mode::setup(LiquidCrystal_I2C* lcd, bool from_interaction)
 		lcd->write_P(PSTR("Room climate:"));
 
 		char* text = new char[32];
-		uint8_t text_len = sprintf(text, "%c%.1f%cC %c%.1f%%", (char)1, htu21d_get_temperature(), (char)223, (char)2, htu21d_get_humidity());
+		uint8_t text_len = sprintf_P(text, PSTR("%c%.1f%cC %c%.1f%%"), (char)1, htu21d_get_temperature(), (char)223, (char)2, htu21d_get_humidity());
 
 		lcd->setCursor(0, 1);
 		lcd->write(text);

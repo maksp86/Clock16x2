@@ -27,7 +27,7 @@ void mqtt_setup()
     mqtt_willtopic = new char[64];
 
     mqtt_device_topic = new char[strlen(get_device_name()) + 30 + 1];
-    sprintf(mqtt_device_topic, MQTT_TOPIC_PREFIX, get_device_name());
+    sprintf_P(mqtt_device_topic, PSTR(MQTT_TOPIC_PREFIX), get_device_name());
 }
 
 void mqtt_update()
@@ -43,6 +43,8 @@ void mqtt_update()
 
 }
 
+const char* state_topic_template PROGMEM = "%sstate";
+
 void mqtt_connect(const char* login, const char* password)
 {
     if (mqtt_is_connected())
@@ -50,7 +52,7 @@ void mqtt_connect(const char* login, const char* password)
 
     mqtt_client->setClientId(get_device_name());
     mqtt_client->setCredentials(login, password);
-    sprintf(mqtt_willtopic, "%sstate", mqtt_topic_start());
+    sprintf_P(mqtt_willtopic, state_topic_template, mqtt_topic_start());
 #if DEBUG >= 4
     Serial.printf("mqtt_connect: %s\n", mqtt_willtopic);
 #endif
@@ -155,11 +157,7 @@ void mqtt_connected_callback(bool sessionPresent)
     mqtt_reconnect_timer_armed = false;
 
     char* topicbuf = new char[64];
-
-#if DEBUG >= 4
-    Serial.printf("mqtt_connected_callback: %s\n", topicbuf);
-#endif
-    sprintf(topicbuf, "%sstate", mqtt_topic_start());
+    sprintf_P(topicbuf, state_topic_template, mqtt_topic_start());
 
     mqtt_client->publish(topicbuf, 0, true, "online");
     delete[] topicbuf;

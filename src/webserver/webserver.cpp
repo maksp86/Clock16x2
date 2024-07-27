@@ -11,9 +11,8 @@ AsyncWebServer* server;
 const char* APPLICATION_JSON_LITERAL = "application/json";
 
 /*
-%DEV_NAME%
-%STATUSJSON% //index
-%CONFNAME%
+@DEV_NAME@
+@CONFNAME@
 */
 String commonProcessor(const String& var)
 {
@@ -46,8 +45,7 @@ void webserver_setup()
         response->printf_P(PSTR(",\"HTU21D\":{\"Status\":\"%sconnected\",\"Temperature\":\"%.2f&deg;C\",\"Humidity\":\"%.2f%%\"}"),
             htu21d_is_connected() ? "" : "dis", htu21d_get_temperature(), htu21d_get_humidity());
 #endif
-        response->printf_P(PSTR(",\"Device\":{\"Free heap\":\"%uB\",\"Uptime\":\"%us\",\"Reboot reason\":\"%s\"}"), ESP.getFreeHeap(), millis() / 1000, ESP.getResetReason().c_str());
-        response->print("}");
+        response->printf_P(PSTR(",\"Device\":{\"Free heap\":\"%uB\",\"Uptime\":\"%us\",\"Reboot reason\":\"%s\"}}"), ESP.getFreeHeap(), millis() / 1000, ESP.getResetReason().c_str());
         request->send(response);
         });
 
@@ -57,10 +55,7 @@ void webserver_setup()
         });
 
     server->onRequestBody(handleBody);
-
     server->on("/upload", HTTP_POST, [](AsyncWebServerRequest* request) { request->send(200); }, handleUpload);
-
-    server->serveStatic("/style.css", LittleFS, "/style.css");
 
     server->serveStatic("/", LittleFS, "/").setTemplateProcessor(commonProcessor);
 }

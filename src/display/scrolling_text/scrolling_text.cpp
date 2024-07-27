@@ -27,7 +27,7 @@ void scrolling_text_destroy(bool full)
 void scrolling_text_prepare_all(uint8_t textlen, uint8_t speed, uint8_t col, uint8_t row, uint8_t width)
 {
     if (scrollingTextContainer != NULL)
-        free(scrollingTextContainer);
+        delete[] scrollingTextContainer;
     scrollingTextContainer = new uint8_t[scrollingTextContainer_init_len + textlen + 1];
     scrolling_text_len = textlen;
     scrolling_i = 0;

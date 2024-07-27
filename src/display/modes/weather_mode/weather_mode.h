@@ -29,6 +29,10 @@ struct weather_object {
     weather_forecast forecast[2];
 };
 
+#define MODE_STATE_CURRENT_TEMP 0
+#define MODE_STATE_FORECAST_FIRST 1
+#define MODE_STATE_FORECAST_SECOND 2
+
 class weather_mode : public DisplayMode
 {
 private:

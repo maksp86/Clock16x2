@@ -48,13 +48,6 @@ void setup()
 #endif
 		safe_start = true;
 	}
-	else
-	{
-#if DEBUG >= 1
-		Serial.printf("Reboot from %u\n", rst->reason);
-#endif
-		safe_start = false;
-	}
 
 	config_setup();
 	make_device_name();
@@ -67,7 +60,7 @@ void setup()
 
 	if (safe_start)
 	{
-		display_show_mode(new message_mode(PSTR("Safe mode"), PSTR("loaded"), NULL, 2000, false));
+		display_show_mode(new message_mode(PSTR("Safe mode loaded"), PSTR("ap started"), NULL, 2000, false));
 		display_update();
 		WiFi.mode(WiFiMode_t::WIFI_AP);
 		WiFi.softAP(get_device_name());
